@@ -1,7 +1,7 @@
-from visual import *
 import numpy as np
 import random
 from math import sqrt, sin, cos, tan, radians, pi
+import matplotlib.pyplot as plt
 
 ''' CLASSES '''
 
@@ -61,30 +61,19 @@ class Network:
     '''A Network class.'''
 
     _id = 0
-    Z_OFFSET = 0.5
 
     def __init__(self, w, h, inputs=[]):
         self.w = w
         self.h = h
 
-        self.scene = display(title='Network' + str(Network._id) + 'Visualization', x=0, y=0)
-        self.scene.background = (0.5,0.5,0.5)
-
         cx, cy = Network.quadrant_coors(w*h // 2, w)
-        cz = self.scene.center.z
+        cz = 0 # FIXME??
         self.center = (cx, cy, cz)
-        self.scene.center = (cx,cy,cz)
-        self.scene.forward = (0,0,-1)
-        self.scene.range = 8
-
-        self.scene.lights = [vector(1,0,0), vector(0, 1, 0), vector(0, 0, 1), \
-            vector(-1,0,0), vector(0, -1, 0), vector(0, 0, -1)]
-        self.scene.ambient = 0
 
         self.mimsies = []
         for i in range(w*h):
             x0, y0 = Network.quadrant_coors(i, w)
-            b = box(pos=(x0,y0,0), length=1, height=1, width=0.2, color=(1,1,1))
+            b = (x0, y0)
             self.mimsies.append(b)
 
         self.inputs = np.array(inputs)
@@ -102,15 +91,13 @@ class Network:
             angle = Euler.fromAngles(rpy)
             self.angles.append(angle)
             proj, norm = angle.rotate()
-            v = arrow(pos=(x1,y1,Network.Z_OFFSET), axis=proj, shaftwidth=0.05, \
-                color=(0, 0.5*(1 + norm), 0))
-            self.mimsies[i].color = (0, 0, 0.5*(1 + norm))
+            v = (x1, y1, proj, norm) # FIXME
             self.vecs.append(v)
 
         Network._id += 1
 
     @classmethod
-    def initialize(cls, w=25, h=25, inputs=[]):
+    def initialize(cls, w=3, h=5, inputs=[]):
         if inputs == []:
             low = -90
             high = 90
@@ -119,25 +106,7 @@ class Network:
         else:
             network = cls(w, h, inputs)
 
-        # Turns off the default user spin and zoom and handles these functions itself.
-        # This gives more control to the program and addresses the problem that at the time of writing,
-        # Visual has a hidden user scaling variable that makes it impossible to force the camera position
-        # by setting range, if the user has already zoomed using the mouse.
-
-        network.scene.userzoom = False
-        network.scene.userspin = False
-        rangemin = 1
-        rangemax = 100
-
-        i_x = 0
-        i_y = 0
-
-        updating = False
-
-        brk = False
-        _rate = 100
-
-
+        '''
         while brk == False:
             rate(_rate)
             if network.scene.kb.keys:
@@ -146,59 +115,7 @@ class Network:
 
                 change = 15
 
-                if k == 'i':
-                    cx, cy, cz = network.center
-                    network.scene.center = (cx,cy,cz)
-                    network.scene.forward = (0,0,-1)
-                elif k == '1':
-                    network.scene.forward = (1,0,-.25)
-                elif k == '2':
-                    network.scene.forward = (0,1,-1)
-                elif k == '3':
-                    network.scene.forward = (1,0,0)
-                elif k == '4':
-                    network.scene.forward = (0,-1,0)
-                elif k == 'shift+down' and network.scene.range.x < rangemax:
-                    network.scene.range = network.scene.range.x + .5
-                elif k == 'shift+up' and network.scene.range.x > rangemin:
-                    network.scene.range = network.scene.range.x - .5
-                elif k == 'up':
-                    network.scene.center = (network.scene.center.x, \
-                        network.scene.center.y + .1, network.scene.center.z)
-                elif k == 'down':
-                    network.scene.center = (network.scene.center.x, \
-                        network.scene.center.y - .1, network.scene.center.z)
-                elif k == 'right':
-                    network.scene.center = (network.scene.center.x + .1, \
-                         network.scene.center.y, network.scene.center.z)
-                elif k == 'left':
-                    network.scene.center = (network.scene.center.x - .1, \
-                        network.scene.center.y, network.scene.center.z)
-                elif k == 'shift+left':
-                    network.scene.center = (network.scene.center.x, \
-                        network.scene.center.y, network.scene.center.z + .1)
-                elif k == 'shift+right':
-                    network.scene.center = (network.scene.center.x, \
-                        network.scene.center.y, network.scene.center.z - .1)
-                elif k == 'w':
-                    network.scene.forward = (network.scene.forward.x, \
-                        network.scene.forward.y - .1, network.scene.forward.z)
-                elif k == 's':
-                    network.scene.forward = (network.scene.forward.x, \
-                        network.scene.forward.y + .1, network.scene.forward.z)
-                elif k == 'a':
-                    network.scene.forward = (network.scene.forward.x - .1, \
-                        network.scene.forward.y, network.scene.forward.z)
-                elif k == 'd':
-                    network.scene.forward = (network.scene.forward.x + .1, \
-                        network.scene.forward.y, network.scene.forward.z)
-                elif k == 'A':
-                    network.scene.forward = (network.scene.forward.x, \
-                        network.scene.forward.y, network.scene.forward.z - .1)
-                elif k == 'D':
-                    network.scene.forward = (network.scene.forward.x, \
-                        network.scene.forward.y, network.scene.forward.z + .1)
-                elif k == '.' or k == 'q':
+                if k == '.' or k == 'q':
                     brk = True
                 elif k == 'r':
                     new_input = [[roll + change, pitch, 0] for [roll, pitch, _] in network.inputs]
@@ -217,10 +134,23 @@ class Network:
                     if new_input[0][1] >= -90:
                         network.update(new_input)
 
-        window.delete_all()
-        exit()
+        '''
 
         return network
+
+    def display(self):
+        points = []
+        for i in range(self.w*self.h):
+            points.append(Network.quadrant_coors(i, self.w))
+
+        x = list(map(lambda x: x[0], points))
+        y = list(map(lambda x: x[1], points))
+
+        plt.rc('grid', linestyle="-", color='black')
+        plt.scatter(x, y)
+        plt.grid(True)
+
+        plt.show()
 
     def update(self, inputs):
         # update state
@@ -236,8 +166,6 @@ class Network:
                     raise ValueError('Invalid Euler Angle, ' + \
                         'range should be between -90 and 90 degrees.')
 
-        [Network.rm(vec) for vec in self.vecs]
-
         self.vecs = []
         self.angles = []
         for i, rpy in enumerate(self.inputs):
@@ -245,26 +173,20 @@ class Network:
             angle = Euler.fromAngles(rpy)
             self.angles.append(angle)
             proj, norm = angle.rotate()
-            v = arrow(pos=(x1,y1,Network.Z_OFFSET), axis=proj, shaftwidth=0.05, \
-                color=(0, 0.5*(1 + norm), 0))
-            self.mimsies[i].color = (0, 0, 0.5*(1 + norm))
+            v = (x1, y1, proj, norm) # FIXME
             self.vecs.append(v)
 
     @staticmethod
-    def rm(obj):
-        obj.visible = False
-        del obj
-
-    @staticmethod
-    def quadrant_coors(ID, n):
-        x, y = ID % n, ID // n
+    def quadrant_coors(ID, w):
+        x, y = ID % w, ID // w
         return x, y
 
     @staticmethod
-    def real_quadrant_coors(ID, n):
-        x, y = Network.quadrant_coors(ID, n)
+    def real_quadrant_coors(ID, w):
+        x, y = Network.quadrant_coors(ID, w)
         return x + .5, y + .5
 
 ''' VISUALIZATION '''
 
 network = Network.initialize()
+network.display()
