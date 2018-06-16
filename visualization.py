@@ -114,9 +114,8 @@ class Network:
         self.angles = [Euler.fromAngles(rpy) for rpy in self.inputs]
         self.makeVectors()
 
-    def display(self):
         quiver3d(*self.vecs)
-        show()
+        show() # FIXME: do I need to show twice?
 
     def makeVectors(self):
         x = np.zeros(shape=(len(self.angles),))
