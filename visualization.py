@@ -96,9 +96,10 @@ class Network:
 
         return network
 
-    def update(self, inputs):
+    def update(self, inputs=[]):
         # update state
-        self.inputs = np.array(inputs)
+        if inputs != []:
+            self.inputs = np.array(inputs)
 
         if self.inputs.shape != (self.w*self.h, 3):
             raise ValueError('Input shape is ' + str(self.inputs.shape) + \
