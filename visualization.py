@@ -75,19 +75,14 @@ class Network:
         self.mimsies = []
         for i in range(w*h):
             x0, y0 = Network.quadrant_coors(i, w)
-            b = (x0, y0)
+            b = (x0, y0) # FIXME
             self.mimsies.append(b)
 
         self.inputs = np.array(inputs)
         if inputs == []:
             self.inputs = np.zeros(shape=(w*h, 3))
 
-        if self.inputs.shape != (w*h, 3):
-            raise ValueError('Input shape is ' + str(self.inputs.shape) \
-                + ', should be (' + str(w*h) + ', 3)')
-
-        self.angles = [Euler.fromAngles(rpy) for rpy in self.inputs]
-        self.makeVectors()
+        self.update()
 
         Network._id += 1
 
@@ -106,8 +101,8 @@ class Network:
         self.inputs = np.array(inputs)
 
         if self.inputs.shape != (self.w*self.h, 3):
-            raise ValueError('Input shape is ' + str(self.inputs.shape) \
-                + ', should be (' + str(w*h) + ', 3)')
+            raise ValueError('Input shape is ' + str(self.inputs.shape) + \
+                ', should be (' + str(self.w*self.h) + ', 3)')
 
         for tup in inputs:
             for val in tup:
@@ -115,15 +110,8 @@ class Network:
                     raise ValueError('Invalid Euler Angle, ' + \
                         'range should be between -90 and 90 degrees.')
 
-        self.vecs = []
-        self.angles = []
-        for i, rpy in enumerate(self.inputs):
-            x1, y1 = Network.quadrant_coors(i, self.w)
-            angle = Euler.fromAngles(rpy)
-            self.angles.append(angle)
-            proj, norm = angle.rotate()
-            v = (x1, y1, proj, norm) # FIXME
-            self.vecs.append(v)
+        self.angles = [Euler.fromAngles(rpy) for rpy in self.inputs]
+        self.makeVectors()
 
     def display(self):
         quiver3d(*self.vecs)
