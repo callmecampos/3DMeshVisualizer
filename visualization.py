@@ -1,12 +1,14 @@
 import numpy as np
 import random
 from math import sqrt, sin, cos, tan, radians, pi
-import matplotlib.pyplot as plt
+from mayavi.mlab import quiver3d
 
 ''' CLASSES '''
 
 class Euler:
     '''A class for Euler Angles.'''
+
+    SCALE = 90
 
     def __init__(self, roll, pitch, yaw=0):
         self.roll = roll
@@ -51,11 +53,11 @@ class Euler:
         '''Returns the "magnitude" of the roll, pitch, or yaw, normalized to 1.
 
         Keyword args:
-        a -- the roll, pitch, or yaw, with an inclusive range of -90 to 90 (degrees).
+        a -- the roll, pitch, or yaw, with an inclusive range of -SCALE to SCALE (degrees).
         '''
-        a = max(-90,a)
-        a = min(90,a)
-        return a / 90.0
+        a = max(-SCALE,a)
+        a = min(SCALE,a)
+        return a / abs(SCALE)
 
 class Network:
     '''A Network class.'''
@@ -84,73 +86,20 @@ class Network:
             raise ValueError('Input shape is ' + str(self.inputs.shape) \
                 + ', should be (' + str(w*h) + ', 3)')
 
-        self.vecs = []
-        self.angles = []
-        for i, rpy in enumerate(self.inputs):
-            x1, y1 = Network.quadrant_coors(i, w)
-            angle = Euler.fromAngles(rpy)
-            self.angles.append(angle)
-            proj, norm = angle.rotate()
-            v = (x1, y1, proj, norm) # FIXME
-            self.vecs.append(v)
+        self.angles = [Euler.fromAngles(rpy) for rpy in self.inputs]
+        self.vecs = self.makeVectors()
 
         Network._id += 1
 
     @classmethod
     def initialize(cls, w=3, h=5, inputs=[]):
         if inputs == []:
-            low = -90
-            high = 90
             test_inputs = [[0, 0, 0] for k in range(w*h)]
             network = cls(w, h, test_inputs)
         else:
             network = cls(w, h, inputs)
 
-        '''
-        while brk == False:
-            rate(_rate)
-            if network.scene.kb.keys:
-                k = network.scene.kb.getkey()
-                _rate = 100
-
-                change = 15
-
-                if k == '.' or k == 'q':
-                    brk = True
-                elif k == 'r':
-                    new_input = [[roll + change, pitch, 0] for [roll, pitch, _] in network.inputs]
-                    if new_input[0][0] <= 90:
-                        network.update(new_input)
-                elif k == 'p':
-                    new_input = [[roll, pitch + change, 0] for [roll, pitch, _] in network.inputs]
-                    if new_input[0][1] <= 90:
-                        network.update(new_input)
-                elif k == 'R':
-                    new_input = [[roll - change, pitch, 0] for [roll, pitch, _] in network.inputs]
-                    if new_input[0][0] >= -90:
-                        network.update(new_input)
-                elif k == 'P':
-                    new_input = [[roll, pitch - change, 0] for [roll, pitch, _] in network.inputs]
-                    if new_input[0][1] >= -90:
-                        network.update(new_input)
-
-        '''
-
         return network
-
-    def display(self):
-        points = []
-        for i in range(self.w*self.h):
-            points.append(Network.quadrant_coors(i, self.w))
-
-        x = list(map(lambda x: x[0], points))
-        y = list(map(lambda x: x[1], points))
-
-        plt.rc('grid', linestyle="-", color='black')
-        plt.scatter(x, y)
-        plt.grid(True)
-
-        plt.show()
 
     def update(self, inputs):
         # update state
@@ -162,7 +111,7 @@ class Network:
 
         for tup in inputs:
             for val in tup:
-                if val < -90 or val > 90:
+                if val < -Euler.SCALE or val > Euler.SCALE:
                     raise ValueError('Invalid Euler Angle, ' + \
                         'range should be between -90 and 90 degrees.')
 
@@ -175,6 +124,25 @@ class Network:
             proj, norm = angle.rotate()
             v = (x1, y1, proj, norm) # FIXME
             self.vecs.append(v)
+
+    def display(self):
+        quiver3d(*self.vecs)
+
+    def makeVectors(self):
+        x = np.zeros(shape=(len(self.angles),))
+        y = np.zeros(shape=(len(self.angles),))
+        z = np.zeros(shape=(len(self.angles),))
+        u = np.zeros(shape=(len(self.angles),))
+        v = np.zeros(shape=(len(self.angles),))
+        w = np.zeros(shape=(len(self.angles),))
+        for i, angle in enumerate(self.angles):
+            x[i], y[i] = Network.real_quadrant_coors(i, self.w) # FIXME??
+            z[i] = 0
+            proj, norm = angle.rotate()
+            u[i], v[i], w[i] = proj
+        self.vecs = (x, y, z, u, v, w)
+
+    ''' Static Methods '''
 
     @staticmethod
     def quadrant_coors(ID, w):
