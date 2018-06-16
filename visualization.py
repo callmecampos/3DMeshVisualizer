@@ -1,7 +1,7 @@
 import numpy as np
 import random
 from math import sqrt, sin, cos, tan, radians, pi
-from mayavi.mlab import quiver3d
+from mayavi.mlab import *
 
 ''' CLASSES '''
 
@@ -87,7 +87,7 @@ class Network:
                 + ', should be (' + str(w*h) + ', 3)')
 
         self.angles = [Euler.fromAngles(rpy) for rpy in self.inputs]
-        self.vecs = self.makeVectors()
+        self.makeVectors()
 
         Network._id += 1
 
@@ -127,6 +127,7 @@ class Network:
 
     def display(self):
         quiver3d(*self.vecs)
+        show()
 
     def makeVectors(self):
         x = np.zeros(shape=(len(self.angles),))
