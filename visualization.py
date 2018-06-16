@@ -57,8 +57,8 @@ class Euler:
         a = min(90,a)
         return a / 90.0
 
-class Bed:
-    '''A Bed class.'''
+class Network:
+    '''A Network class.'''
 
     _id = 0
     Z_OFFSET = 0.5
@@ -67,10 +67,10 @@ class Bed:
         self.w = w
         self.h = h
 
-        self.scene = display(title='Bed' + str(Bed._id) + 'Visualization', x=0, y=0)
+        self.scene = display(title='Network' + str(Network._id) + 'Visualization', x=0, y=0)
         self.scene.background = (0.5,0.5,0.5)
 
-        cx, cy = Bed.quadrant_coors(w*h // 2, w)
+        cx, cy = Network.quadrant_coors(w*h // 2, w)
         cz = self.scene.center.z
         self.center = (cx, cy, cz)
         self.scene.center = (cx,cy,cz)
@@ -83,7 +83,7 @@ class Bed:
 
         self.mimsies = []
         for i in range(w*h):
-            x0, y0 = Bed.quadrant_coors(i, w)
+            x0, y0 = Network.quadrant_coors(i, w)
             b = box(pos=(x0,y0,0), length=1, height=1, width=0.2, color=(1,1,1))
             self.mimsies.append(b)
 
@@ -98,16 +98,16 @@ class Bed:
         self.vecs = []
         self.angles = []
         for i, rpy in enumerate(self.inputs):
-            x1, y1 = Bed.quadrant_coors(i, w)
+            x1, y1 = Network.quadrant_coors(i, w)
             angle = Euler.fromAngles(rpy)
             self.angles.append(angle)
             proj, norm = angle.rotate()
-            v = arrow(pos=(x1,y1,Bed.Z_OFFSET), axis=proj, shaftwidth=0.05, \
+            v = arrow(pos=(x1,y1,Network.Z_OFFSET), axis=proj, shaftwidth=0.05, \
                 color=(0, 0.5*(1 + norm), 0))
             self.mimsies[i].color = (0, 0, 0.5*(1 + norm))
             self.vecs.append(v)
 
-        Bed._id += 1
+        Network._id += 1
 
     @classmethod
     def initialize(cls, w=25, h=25, inputs=[]):
@@ -115,17 +115,17 @@ class Bed:
             low = -90
             high = 90
             test_inputs = [[0, 0, 0] for k in range(w*h)]
-            bed = cls(w, h, test_inputs)
+            network = cls(w, h, test_inputs)
         else:
-            bed = cls(w, h, inputs)
+            network = cls(w, h, inputs)
 
         # Turns off the default user spin and zoom and handles these functions itself.
         # This gives more control to the program and addresses the problem that at the time of writing,
         # Visual has a hidden user scaling variable that makes it impossible to force the camera position
         # by setting range, if the user has already zoomed using the mouse.
 
-        bed.scene.userzoom = False
-        bed.scene.userspin = False
+        network.scene.userzoom = False
+        network.scene.userspin = False
         rangemin = 1
         rangemax = 100
 
@@ -140,87 +140,87 @@ class Bed:
 
         while brk == False:
             rate(_rate)
-            if bed.scene.kb.keys:
-                k = bed.scene.kb.getkey()
+            if network.scene.kb.keys:
+                k = network.scene.kb.getkey()
                 _rate = 100
 
                 change = 15
 
                 if k == 'i':
-                    cx, cy, cz = bed.center
-                    bed.scene.center = (cx,cy,cz)
-                    bed.scene.forward = (0,0,-1)
+                    cx, cy, cz = network.center
+                    network.scene.center = (cx,cy,cz)
+                    network.scene.forward = (0,0,-1)
                 elif k == '1':
-                    bed.scene.forward = (1,0,-.25)
+                    network.scene.forward = (1,0,-.25)
                 elif k == '2':
-                    bed.scene.forward = (0,1,-1)
+                    network.scene.forward = (0,1,-1)
                 elif k == '3':
-                    bed.scene.forward = (1,0,0)
+                    network.scene.forward = (1,0,0)
                 elif k == '4':
-                    bed.scene.forward = (0,-1,0)
-                elif k == 'shift+down' and bed.scene.range.x < rangemax:
-                    bed.scene.range = bed.scene.range.x + .5
-                elif k == 'shift+up' and bed.scene.range.x > rangemin:
-                    bed.scene.range = bed.scene.range.x - .5
+                    network.scene.forward = (0,-1,0)
+                elif k == 'shift+down' and network.scene.range.x < rangemax:
+                    network.scene.range = network.scene.range.x + .5
+                elif k == 'shift+up' and network.scene.range.x > rangemin:
+                    network.scene.range = network.scene.range.x - .5
                 elif k == 'up':
-                    bed.scene.center = (bed.scene.center.x, \
-                        bed.scene.center.y + .1, bed.scene.center.z)
+                    network.scene.center = (network.scene.center.x, \
+                        network.scene.center.y + .1, network.scene.center.z)
                 elif k == 'down':
-                    bed.scene.center = (bed.scene.center.x, \
-                        bed.scene.center.y - .1, bed.scene.center.z)
+                    network.scene.center = (network.scene.center.x, \
+                        network.scene.center.y - .1, network.scene.center.z)
                 elif k == 'right':
-                    bed.scene.center = (bed.scene.center.x + .1, \
-                         bed.scene.center.y, bed.scene.center.z)
+                    network.scene.center = (network.scene.center.x + .1, \
+                         network.scene.center.y, network.scene.center.z)
                 elif k == 'left':
-                    bed.scene.center = (bed.scene.center.x - .1, \
-                        bed.scene.center.y, bed.scene.center.z)
+                    network.scene.center = (network.scene.center.x - .1, \
+                        network.scene.center.y, network.scene.center.z)
                 elif k == 'shift+left':
-                    bed.scene.center = (bed.scene.center.x, \
-                        bed.scene.center.y, bed.scene.center.z + .1)
+                    network.scene.center = (network.scene.center.x, \
+                        network.scene.center.y, network.scene.center.z + .1)
                 elif k == 'shift+right':
-                    bed.scene.center = (bed.scene.center.x, \
-                        bed.scene.center.y, bed.scene.center.z - .1)
+                    network.scene.center = (network.scene.center.x, \
+                        network.scene.center.y, network.scene.center.z - .1)
                 elif k == 'w':
-                    bed.scene.forward = (bed.scene.forward.x, \
-                        bed.scene.forward.y - .1, bed.scene.forward.z)
+                    network.scene.forward = (network.scene.forward.x, \
+                        network.scene.forward.y - .1, network.scene.forward.z)
                 elif k == 's':
-                    bed.scene.forward = (bed.scene.forward.x, \
-                        bed.scene.forward.y + .1, bed.scene.forward.z)
+                    network.scene.forward = (network.scene.forward.x, \
+                        network.scene.forward.y + .1, network.scene.forward.z)
                 elif k == 'a':
-                    bed.scene.forward = (bed.scene.forward.x - .1, \
-                        bed.scene.forward.y, bed.scene.forward.z)
+                    network.scene.forward = (network.scene.forward.x - .1, \
+                        network.scene.forward.y, network.scene.forward.z)
                 elif k == 'd':
-                    bed.scene.forward = (bed.scene.forward.x + .1, \
-                        bed.scene.forward.y, bed.scene.forward.z)
+                    network.scene.forward = (network.scene.forward.x + .1, \
+                        network.scene.forward.y, network.scene.forward.z)
                 elif k == 'A':
-                    bed.scene.forward = (bed.scene.forward.x, \
-                        bed.scene.forward.y, bed.scene.forward.z - .1)
+                    network.scene.forward = (network.scene.forward.x, \
+                        network.scene.forward.y, network.scene.forward.z - .1)
                 elif k == 'D':
-                    bed.scene.forward = (bed.scene.forward.x, \
-                        bed.scene.forward.y, bed.scene.forward.z + .1)
+                    network.scene.forward = (network.scene.forward.x, \
+                        network.scene.forward.y, network.scene.forward.z + .1)
                 elif k == '.' or k == 'q':
                     brk = True
                 elif k == 'r':
-                    new_input = [[roll + change, pitch, 0] for [roll, pitch, _] in bed.inputs]
+                    new_input = [[roll + change, pitch, 0] for [roll, pitch, _] in network.inputs]
                     if new_input[0][0] <= 90:
-                        bed.update(new_input)
+                        network.update(new_input)
                 elif k == 'p':
-                    new_input = [[roll, pitch + change, 0] for [roll, pitch, _] in bed.inputs]
+                    new_input = [[roll, pitch + change, 0] for [roll, pitch, _] in network.inputs]
                     if new_input[0][1] <= 90:
-                        bed.update(new_input)
+                        network.update(new_input)
                 elif k == 'R':
-                    new_input = [[roll - change, pitch, 0] for [roll, pitch, _] in bed.inputs]
+                    new_input = [[roll - change, pitch, 0] for [roll, pitch, _] in network.inputs]
                     if new_input[0][0] >= -90:
-                        bed.update(new_input)
+                        network.update(new_input)
                 elif k == 'P':
-                    new_input = [[roll, pitch - change, 0] for [roll, pitch, _] in bed.inputs]
+                    new_input = [[roll, pitch - change, 0] for [roll, pitch, _] in network.inputs]
                     if new_input[0][1] >= -90:
-                        bed.update(new_input)
+                        network.update(new_input)
 
         window.delete_all()
         exit()
 
-        return bed
+        return network
 
     def update(self, inputs):
         # update state
@@ -236,16 +236,16 @@ class Bed:
                     raise ValueError('Invalid Euler Angle, ' + \
                         'range should be between -90 and 90 degrees.')
 
-        [Bed.rm(vec) for vec in self.vecs]
+        [Network.rm(vec) for vec in self.vecs]
 
         self.vecs = []
         self.angles = []
         for i, rpy in enumerate(self.inputs):
-            x1, y1 = Bed.quadrant_coors(i, self.w)
+            x1, y1 = Network.quadrant_coors(i, self.w)
             angle = Euler.fromAngles(rpy)
             self.angles.append(angle)
             proj, norm = angle.rotate()
-            v = arrow(pos=(x1,y1,Bed.Z_OFFSET), axis=proj, shaftwidth=0.05, \
+            v = arrow(pos=(x1,y1,Network.Z_OFFSET), axis=proj, shaftwidth=0.05, \
                 color=(0, 0.5*(1 + norm), 0))
             self.mimsies[i].color = (0, 0, 0.5*(1 + norm))
             self.vecs.append(v)
@@ -262,9 +262,9 @@ class Bed:
 
     @staticmethod
     def real_quadrant_coors(ID, n):
-        x, y = Bed.quadrant_coors(ID, n)
+        x, y = Network.quadrant_coors(ID, n)
         return x + .5, y + .5
 
 ''' VISUALIZATION '''
 
-bed = Bed.initialize()
+network = Network.initialize()
