@@ -21,7 +21,7 @@ class Euler:
 
     def rotate(self):
         result = Euler.rotationOp(self.roll, self.pitch, self.yaw)
-        return (result[0] * .5, result[1] * .5, 0), \
+        return (-result[1] * .5, result[0] * .5, 0), \
             float(sqrt(result[0]**2 + result[1]**2 + result[2]**2))
 
     ''' Static Methods '''
@@ -91,14 +91,30 @@ class Network:
         if inputs == []:
             self.inputs = np.zeros(shape=(w*h, 3))
 
-        if self.inputs.shape != (w*h, 3):
+        self.update(init=True)
+
+        Network._id += 1
+
+    def update(self, inputs=[], init=False):
+        # update state
+        if not init:
+            self.inputs = np.array(inputs)
+            [Network.rm(vec) for vec in self.vecs]
+
+        if self.inputs.shape != (self.w*self.h, 3):
             raise ValueError('Input shape is ' + str(self.inputs.shape) \
                 + ', should be (' + str(w*h) + ', 3)')
+
+        for tup in inputs:
+            for val in tup:
+                if val < -90 or val > 90:
+                    raise ValueError('Invalid Euler Angle, ' + \
+                        'range should be between -90 and 90 degrees.')
 
         self.vecs = []
         self.angles = []
         for i, rpy in enumerate(self.inputs):
-            x1, y1 = Network.quadrant_coors(i, w)
+            x1, y1 = Network.quadrant_coors(i, self.w)
             angle = Euler.fromAngles(rpy)
             self.angles.append(angle)
             proj, norm = angle.rotate()
@@ -107,10 +123,27 @@ class Network:
             self.mimsies[i].color = (0, 0, 0.5*(1 + norm))
             self.vecs.append(v)
 
-        Network._id += 1
+    ''' Static Methods '''
+
+    @staticmethod
+    def rm(obj):
+        obj.visible = False
+        del obj
+
+    @staticmethod
+    def quadrant_coors(ID, n):
+        x, y = ID % n, ID // n
+        return x, y
+
+    @staticmethod
+    def real_quadrant_coors(ID, n):
+        x, y = Network.quadrant_coors(ID, n)
+        return x + .5, y + .5
+
+    ''' Class Methods '''
 
     @classmethod
-    def initialize(cls, w=25, h=25, inputs=[]):
+    def initialize(cls, w=3, h=5, inputs=[]):
         if inputs == []:
             low = -90
             high = 90
@@ -136,7 +169,6 @@ class Network:
 
         brk = False
         _rate = 100
-
 
         while brk == False:
             rate(_rate)
@@ -221,49 +253,6 @@ class Network:
         exit()
 
         return network
-
-    def update(self, inputs):
-        # update state
-        self.inputs = np.array(inputs)
-
-        if self.inputs.shape != (self.w*self.h, 3):
-            raise ValueError('Input shape is ' + str(self.inputs.shape) \
-                + ', should be (' + str(w*h) + ', 3)')
-
-        for tup in inputs:
-            for val in tup:
-                if val < -90 or val > 90:
-                    raise ValueError('Invalid Euler Angle, ' + \
-                        'range should be between -90 and 90 degrees.')
-
-        [Network.rm(vec) for vec in self.vecs]
-
-        self.vecs = []
-        self.angles = []
-        for i, rpy in enumerate(self.inputs):
-            x1, y1 = Network.quadrant_coors(i, self.w)
-            angle = Euler.fromAngles(rpy)
-            self.angles.append(angle)
-            proj, norm = angle.rotate()
-            v = arrow(pos=(x1,y1,Network.Z_OFFSET), axis=proj, shaftwidth=0.05, \
-                color=(0, 0.5*(1 + norm), 0))
-            self.mimsies[i].color = (0, 0, 0.5*(1 + norm))
-            self.vecs.append(v)
-
-    @staticmethod
-    def rm(obj):
-        obj.visible = False
-        del obj
-
-    @staticmethod
-    def quadrant_coors(ID, n):
-        x, y = ID % n, ID // n
-        return x, y
-
-    @staticmethod
-    def real_quadrant_coors(ID, n):
-        x, y = Network.quadrant_coors(ID, n)
-        return x + .5, y + .5
 
 ''' VISUALIZATION '''
 
