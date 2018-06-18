@@ -75,7 +75,7 @@ class Network:
         self.scene = display(title='Network' + str(Network._id) + 'Visualization', x=0, y=0)
         self.scene.background = (0.5,0.5,0.5)
 
-        cx, cy = Network.quadrant_coors(w*h // 2, w)
+        cx, cy = self.quadrant_coors(w*h // 2, w)
         cz = self.scene.center.z
         self.center = (cx, cy, cz)
         self.scene.center = (cx,cy,cz)
@@ -88,7 +88,7 @@ class Network:
 
         self.mimsies = []
         for i in range(w*h):
-            x0, y0 = Network.quadrant_coors(i, w)
+            x0, y0 = self.quadrant_coors(i, w)
             b = box(pos=(x0,y0,0), length=1, height=1, width=0.2, color=(1,1,1))
             self.mimsies.append(b)
 
@@ -119,7 +119,7 @@ class Network:
         self.vecs = []
         self.angles = []
         for i, rpy in enumerate(self.inputs):
-            x1, y1 = Network.quadrant_coors(i, self.w)
+            x1, y1 = self.quadrant_coors(i, self.w)
             angle = Euler.fromAngles(rpy)
             self.angles.append(angle)
             proj, norm = angle.rotate()
