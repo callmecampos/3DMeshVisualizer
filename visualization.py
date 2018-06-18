@@ -1,6 +1,6 @@
 import numpy as np
 from math import sqrt, sin, cos, tan, radians, pi
-from mayavi.mlab import *
+import matplotlib.pyplot as plt
 import wx, random, serial
 
 ''' CLASSES '''
@@ -22,7 +22,7 @@ class Euler:
     ''' Methods '''
 
     def rotate(self, dimension=3):
-        result = Euler.rotationOp(self.roll, self.pitch, self.yaw)
+        result = Euler.rotation_op(self.roll, self.pitch, self.yaw)
         if dimension == 3:
             return (result[0] * .5, result[1] * .5, result[2] * .5), \
                 float(sqrt(result[0]**2 + result[1]**2 + result[2]**2))
@@ -33,7 +33,7 @@ class Euler:
     ''' Static Methods '''
 
     @staticmethod
-    def rotationOp(_phi, _theta, _psi):
+    def rotation_op(_phi, _theta, _psi):
         psi, theta, phi = radians(_psi), radians(_theta), -radians(_phi)
         k_hat = np.transpose(np.array([0, 0, 1]))
         Q_BI = np.zeros(shape=(3, 3))
@@ -71,7 +71,7 @@ class Network:
     def __init__(self, w, h, inputs=[]):
         self.w = w
         self.h = h
-        
+
         cx, cy = Network.quadrant_coors(w*h // 2, w)
         cz = 0 # FIXME??
         self.center = (cx, cy, cz)
@@ -87,7 +87,16 @@ class Network:
             self.inputs = np.zeros(shape=(w*h, 3))
 
         self.update()
-        self.plt = quiver3d(*self.vecs)
+        fig = plt.figure()
+        ax = fig.gca()
+        ax.set_xlim([0, self.w])
+        ax.set_ylim([0, self.h])
+        ax.set_xticks(np.arange(0, self.w, 1))
+        ax.set_yticks(np.arange(0, self.h, 1))
+        Network.adjust_fig_aspect(fig, float(self.w)/self.h)
+        plt.quiver(*self.vecs)
+        plt.grid()
+        plt.show()
 
         self.ID = Network._id
         Network._id += 1
@@ -119,29 +128,18 @@ class Network:
 
         self.angles = [Euler.fromAngles(rpy) for rpy in self.inputs]
         self.makeVectors()
-
-    def start(self):
-        self._start(self)
-
-    @animate
-    def _start(self):
-        self.update(inputs=[[random.uniform(-10, 10), random.uniform(-10, 10), 0] for k in range(self.w*self.h)])
-        self.plt.mlab_source.trait_set(u=self.vecs[3], v=self.vecs[4], w=self.vecs[5])
-        show()
+        # TODO: add redraw logic
 
     def makeVectors(self):
         x = np.zeros(shape=(len(self.angles),))
         y = np.zeros(shape=(len(self.angles),))
-        z = np.zeros(shape=(len(self.angles),))
         u = np.zeros(shape=(len(self.angles),))
         v = np.zeros(shape=(len(self.angles),))
-        w = np.zeros(shape=(len(self.angles),))
         for i, angle in enumerate(self.angles):
             x[i], y[i] = Network.real_quadrant_coors(i, self.w) # FIXME??
-            z[i] = 0
             proj, norm = angle.rotate(dimension=2)
-            u[i], v[i], w[i] = proj
-        self.vecs = (x, y, z, u, v, w)
+            u[i], v[i], _ = proj
+        self.vecs = (x, y, u, v)
 
     ''' Static Methods '''
 
@@ -155,8 +153,27 @@ class Network:
         x, y = Network.quadrant_coors(ID, w)
         return x + .5, y + .5
 
+    @staticmethod
+    def adjust_fig_aspect(fig,aspect=1):
+        '''
+        Adjust the subplot parameters so that the figure has the correct
+        aspect ratio.
+
+        Credit to: https://stackoverflow.com/questions/7965743/how-can-i-set-the-aspect-ratio-in-matplotlib
+        '''
+        xsize,ysize = fig.get_size_inches()
+        minsize = min(xsize,ysize)
+        xlim = .4*minsize/xsize
+        ylim = .4*minsize/ysize
+        if aspect < 1:
+            xlim *= aspect
+        else:
+            ylim /= aspect
+        fig.subplots_adjust(left=.5-xlim,
+                            right=.5+xlim,
+                            bottom=.5-ylim,
+                            top=.5+ylim)
+
 ''' VISUALIZATION '''
 
 network = Network.initialize()
-raw_input('Press any key to start.')
-network.start()
