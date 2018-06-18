@@ -268,5 +268,5 @@ def main():
     print 'poipoi'
 
 if __name__=="__main__":
-    network = Network.initialize(args.w, args.h)
+    network = Network.initialize(args.w, args.h, 'setup.txt')
     moteProbe('/dev/ttyUSB' + args.p, network)
