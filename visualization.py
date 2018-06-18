@@ -44,7 +44,7 @@ class Euler:
         print('sin(phi), cos(phi) = ' + str(sin(phi)) + ', ' + str(cos(phi)))
         print(Q_BI, k_hat)'''
 
-        return np.dot(Q_BI, k_hat)
+        return np.dot(np.transpose(Q_BI), k_hat)
 
     @staticmethod
     def norm(a):
@@ -63,9 +63,7 @@ class Network:
     _id = 0
     Z_OFFSET = 0.5
 
-    MIMSY = { "def01" : 0 }
-
-    def __init__(self, w, h, inputs=[]):
+    def __init__(self, w, h, inputs=[], mapping={}):
         self.w = w
         self.h = h
 
@@ -97,7 +95,7 @@ class Network:
 
         Network._id += 1
 
-    def update(self, inputs=[], init=False):
+    def update(self, inputs=[], mapping={}, init=False):
         # update state
         if not init:
             self.inputs = np.array(inputs)
