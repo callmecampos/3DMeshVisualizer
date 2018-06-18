@@ -21,14 +21,14 @@ class Euler:
 
     def rotate(self):
         result = Euler.rotationOp(self.roll, self.pitch, self.yaw)
-        return (result[0] * .5, result[1] * .5, result[2] * .5), \
+        return (result[0] * .5, result[1] * .5, 0), \
             float(sqrt(result[0]**2 + result[1]**2 + result[2]**2))
 
     ''' Static Methods '''
 
     @staticmethod
     def rotationOp(_phi, _theta, _psi):
-        psi, theta, phi = radians(_psi), radians(_theta), -radians(_phi)
+        psi, theta, phi = radians(_psi), radians(_theta), radians(_phi)
         k_hat = np.transpose(np.array([0, 0, 1]))
         Q_BI = np.zeros(shape=(3, 3))
         Q_BI[0] = [cos(theta) * cos(psi),
