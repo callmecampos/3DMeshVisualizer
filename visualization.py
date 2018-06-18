@@ -18,7 +18,6 @@ class Euler:
 
         self.roll = roll
         self.pitch = pitch
-        self.yaw = yaw
 
     @classmethod
     def fromAngles(cls, rpy):
@@ -69,9 +68,11 @@ class Network:
     _id = 0
     Z_OFFSET = 0.5
 
-    def __init__(self, w, h, mapping={}):
+    def __init__(self, w, h, mapping):
         self.w = w
         self.h = h
+
+        self.mapping = mapping
 
         self.scene = display(title='Network' + str(Network._id) + 'Visualization', x=0, y=0)
         self.scene.background = (0.5,0.5,0.5)
@@ -81,7 +82,7 @@ class Network:
         self.center = (cx, cy, cz)
         self.scene.center = (cx,cy,cz)
         self.scene.forward = (0,0,-1)
-        self.scene.range = 8
+        self.scene.range = max(w, h)
 
         self.scene.lights = [vector(1,0,0), vector(0, 1, 0), vector(0, 0, 1), \
             vector(-1,0,0), vector(0, -1, 0), vector(0, 0, -1)]
@@ -94,11 +95,11 @@ class Network:
             self.mimsies.append(b)
 
         self.inputs = np.array([(0, 0) for k in range(w*h)])
-        self.update()
+        self.initGUI()
 
         Network._id += 1
 
-    def update(self, inputs=[]):
+    def update(self, data, addr):
         '''
         Updates the state of our network.
 
@@ -106,13 +107,19 @@ class Network:
         inputs -- a list with elements of format (roll, pitch)
         init -- True if initializing a network, False otherwise
         '''
-        if not init:
-            self.inputs = np.array(inputs)
-            [Network.rm(vec) for vec in self.vecs]
 
-        if self.inputs.shape != (self.w*self.h, 3):
-            raise ValueError('Input shape is ' + str(self.inputs.shape) \
-                + ', should be (' + str(w*h) + ', 3)')
+        # get vec from mapping
+        # set new params
+
+    def initGUI(self):
+        '''
+        Initializes the GUI for our network.
+
+        Keyword arguments:
+        inputs -- a list with elements of format (roll, pitch)
+        '''
+
+        self.checkInput()
 
         self.vecs = []
         self.angles = []
@@ -136,6 +143,15 @@ class Network:
         '''
         x, y = ID % self.w, ID // self.w
         return x, y
+
+    def checkInput(self):
+        '''
+        Checks the shape of our input, throws a ValueError if formatted badly.
+        '''
+        if self.inputs.shape != (self.w*self.h, 2):
+            raise ValueError('Bad Input: Input shape is ' + str(self.inputs.shape) \
+                + ', should be (' + str(self.w*self.h) + ', 2)')
+
 
     ''' Static Methods '''
 

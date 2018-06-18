@@ -8,8 +8,6 @@ from visualization import *
 from math import sin,cos,tan,radians,atan,sqrt
 
 parser = argparse.ArgumentParser()
-parser.add_argument("w", help='the width of our network', type=int)
-parser.add_argument("h", help='the height of our network', type=int)
 parser.add_argument("p", help='the DAG root port')
 args = parser.parse_args()
 
@@ -248,7 +246,7 @@ class moteProbe(threading.Thread):
                                         myfile.write("Time[s]," + str((asn_initial[0] + asn_initial[1]*65536)*0.01) + ",Xacceleration[gs]," + str(Xaccel) + ",Yacceleration[gs]," + str(Yaccel) + ",Zacceleration[gs]," + str(Zaccel) + ",Temperature[C]," + str(temperature) + ",Address," + str('{:x}'.format(myAddr)) + '\n')
                                         with self.outputBufLock:
                                             self.outputBuf += [binascii.unhexlify(self.CMD_SEND_DATA)]
-                                        self.network.update(inputs=[[roll, pitch]])
+                                        self.network.update(data=(roll, pitch), addr=str(myAddr))
 
 
 
@@ -268,5 +266,5 @@ def main():
     print 'poipoi'
 
 if __name__=="__main__":
-    network = Network.initialize(args.w, args.h, 'setup.txt')
+    network = Network.initialize('setup.txt')
     moteProbe('/dev/ttyUSB' + args.p, network)
