@@ -34,7 +34,7 @@ class Euler:
 
     @staticmethod
     def rotation_op(_phi, _theta, _psi):
-        psi, theta, phi = radians(_psi), radians(_theta), -radians(_phi)
+        psi, theta, phi = radians(_psi), radians(_theta), radians(_phi)
         k_hat = np.transpose(np.array([0, 0, 1]))
         Q_BI = np.zeros(shape=(3, 3))
         Q_BI[0] = [cos(theta) * cos(psi),
