@@ -1,7 +1,7 @@
 import numpy as np
-import random
 from math import sqrt, sin, cos, tan, radians, pi
 from mayavi.mlab import *
+import wx, random, serial
 
 ''' CLASSES '''
 
@@ -21,10 +21,14 @@ class Euler:
 
     ''' Methods '''
 
-    def rotate(self):
+    def rotate(self, dimension=3):
         result = Euler.rotationOp(self.roll, self.pitch, self.yaw)
-        return (result[0] * .5, result[1] * .5, result[2] * .5), \
-            float(sqrt(result[0]**2 + result[1]**2 + result[2]**2))
+        if dimension == 3:
+            return (result[0] * .5, result[1] * .5, result[2] * .5), \
+                float(sqrt(result[0]**2 + result[1]**2 + result[2]**2))
+        elif dimension == 2:
+            return (result[0] * .5, result[1] * .5, 0), \
+                float(sqrt(result[0]**2 + result[1]**2 + result[2]**2))
 
     ''' Static Methods '''
 
@@ -67,7 +71,7 @@ class Network:
     def __init__(self, w, h, inputs=[]):
         self.w = w
         self.h = h
-
+        
         cx, cy = Network.quadrant_coors(w*h // 2, w)
         cz = 0 # FIXME??
         self.center = (cx, cy, cz)
@@ -83,7 +87,9 @@ class Network:
             self.inputs = np.zeros(shape=(w*h, 3))
 
         self.update()
+        self.plt = quiver3d(*self.vecs)
 
+        self.ID = Network._id
         Network._id += 1
 
     @classmethod
@@ -114,8 +120,14 @@ class Network:
         self.angles = [Euler.fromAngles(rpy) for rpy in self.inputs]
         self.makeVectors()
 
-        quiver3d(*self.vecs)
-        show() # FIXME: do I need to show twice?
+    def start(self):
+        self._start(self)
+
+    @animate
+    def _start(self):
+        self.update(inputs=[[random.uniform(-10, 10), random.uniform(-10, 10), 0] for k in range(self.w*self.h)])
+        self.plt.mlab_source.trait_set(u=self.vecs[3], v=self.vecs[4], w=self.vecs[5])
+        show()
 
     def makeVectors(self):
         x = np.zeros(shape=(len(self.angles),))
@@ -127,7 +139,7 @@ class Network:
         for i, angle in enumerate(self.angles):
             x[i], y[i] = Network.real_quadrant_coors(i, self.w) # FIXME??
             z[i] = 0
-            proj, norm = angle.rotate()
+            proj, norm = angle.rotate(dimension=2)
             u[i], v[i], w[i] = proj
         self.vecs = (x, y, z, u, v, w)
 
@@ -146,4 +158,5 @@ class Network:
 ''' VISUALIZATION '''
 
 network = Network.initialize()
-network.display()
+raw_input('Press any key to start.')
+network.start()
