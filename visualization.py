@@ -34,7 +34,7 @@ class Euler:
 
     @staticmethod
     def rotationOp(_phi, _theta, _psi):
-        psi, theta, phi = radians(_psi), radians(_theta), -radians(_phi)
+        psi, theta, phi = radians(_psi), radians(_theta), radians(_phi)
         k_hat = np.transpose(np.array([0, 0, 1]))
         Q_BI = np.zeros(shape=(3, 3))
         Q_BI[0] = [cos(theta) * cos(psi),
@@ -71,7 +71,7 @@ class Network:
     def __init__(self, w, h, inputs=[]):
         self.w = w
         self.h = h
-        
+
         cx, cy = Network.quadrant_coors(w*h // 2, w)
         cz = 0 # FIXME??
         self.center = (cx, cy, cz)
