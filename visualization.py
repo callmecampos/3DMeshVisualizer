@@ -213,6 +213,13 @@ class Network:
             if not set:
                 w = len(addrs)
                 set = True
-            [mapping.put(addr, i*len(addrs)+j) for j, addr in enumerate(addrs)]
-
+            elif w != len(addrs):
+                raise RuntimeError('Setup file badly formatted: ' + \
+                    'Inconsistent widths on lines 1 and ' + str(i))
+            for j, addr in enumerate(addrs):
+                mapping.put(addr, i*len(addrs)+j)
+                if not re.match(regex, test):
+                    raise RuntimeError('Setup file badly formatted: ' + \
+                        'Mimsy board ID at position (' + \
+                         str(j) + ', ' + str(i) + ') does not pass regex test.')
         return cls(w, h, mapping=mapping)
