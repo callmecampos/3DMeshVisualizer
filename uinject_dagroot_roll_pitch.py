@@ -1,4 +1,4 @@
-import serial, threading, struct
+import serial, threading, struct, subprocess
 import datetime, argparse, binascii
 from visualization import *
 from math import sin, cos, tan, radians, atan, sqrt
@@ -263,9 +263,12 @@ def main():
 
 if __name__=="__main__":
     network = Network.initialize('setup.txt')
-    proc = subprocess.Popen('ls', stdout=subprocess.PIPE)
-    ports = proc.stdout.read().split(' ')
-    if args.port is None:
-        moteProbe(ports[0], network)
-    else:
-        moteProbe('/dev/ttyUSB' + args.p, network)
+    try:
+        proc = subprocess.Popen('ls /dev/ttyUSB*', stdout=subprocess.PIPE)
+        ports = proc.stdout.read().split('\n')
+        if args.port is None:
+            moteProbe(ports[0], network)
+        else:
+            moteProbe('/dev/ttyUSB' + args.p, network)
+    except OSError:
+        pass
