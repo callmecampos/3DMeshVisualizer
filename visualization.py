@@ -1,4 +1,4 @@
-from visual import *
+import matplotlib.pyplot as plt
 import numpy as np
 import random
 from math import sqrt, sin, cos, tan, atan, radians, pi
@@ -109,8 +109,7 @@ class Network:
         '''
         index = self.mapping.get(addr)
         proj, norm = Euler.fromAngles(data).rotate()
-        self.get_vec(index).axis = proj
-        self.setMimsyColor(index, b=0.5 + 0.5*norm)
+        self.set_vec(i, proj)
 
     def initGUI(self):
         '''
@@ -122,26 +121,37 @@ class Network:
 
         self.checkInput()
 
-        self.vecs = []
-        self.angles = []
-        for i, rpy in enumerate(self.inputs):
-            angle = Euler.fromAngles(rpy)
-            self.angles.append(angle)
-            self.set_vec(i, angle)
+        self.w = w
+        self.h = h
 
-    def get_vec(self, i):
-        return self.vecs[i]
+        cx, cy = Network.quadrant_coors(w*h // 2)
+        cz = 0 # FIXME??
+        self.center = (cx, cy, cz)
 
-    def set_vec(self, i, angle):
-        x1, y1 = self.quadrant_coors(i)
-        proj, norm = angle.rotate()
-        v = arrow(pos=(x1,y1,Network.Z_OFFSET), axis=proj, shaftwidth=0.05, \
-            color=(0, 0.5*(1 + norm), 0))
-        self.setMimsyColor(i, b=0.5 + 0.5*norm)
-        self.vecs.append(v)
+        self.angles = [Euler.fromAngles(rpy) for rpy in self.inputs]
+        self.set_vecs()
 
-    def setMimsyColor(self, i, r=0, g=0, b=0):
-        self.mimsies[i].color = (r, g, b)
+        self.fig = plt.figure()
+        self.ax = self.fig.gca()
+        self.ax.set_xlim([0, self.w])
+        self.ax.set_ylim([0, self.h])
+        self.ax.set_xticks(np.arange(0, self.w, 1))
+        self.ax.set_yticks(np.arange(0, self.h, 1))
+        self.adjust_fig_aspect()
+        self.quiv = plt.quiver(*self.vecs)
+        plt.grid()
+        plt.show()
+
+    def set_vecs(self):
+        x = np.zeros(shape=(len(self.angles),))
+        y = np.zeros(shape=(len(self.angles),))
+        u = np.zeros(shape=(len(self.angles),))
+        v = np.zeros(shape=(len(self.angles),))
+        for i, angle in enumerate(self.angles):
+            x[i], y[i] = Network.real_quadrant_coors(i, self.w) # FIXME??
+            proj, norm = angle.rotate(dimension=2)
+            u[i], v[i], _ = proj
+        self.vecs = (x, y, u, v)
 
     def quadrant_coors(self, ID):
         '''
@@ -161,6 +171,25 @@ class Network:
         if self.inputs.shape != (self.w*self.h, 2):
             raise ValueError('Bad Input: Input shape is ' + str(self.inputs.shape) \
                 + ', should be (' + str(self.w*self.h) + ', 2)')
+
+    def adjust_fig_aspect(fig,aspect=1):
+        '''
+        Adjust the subplot parameters so that the figure has the correct
+        aspect ratio.
+        Credit to: https://stackoverflow.com/questions/7965743/how-can-i-set-the-aspect-ratio-in-matplotlib
+        '''
+        xsize,ysize = fig.get_size_inches()
+        minsize = min(xsize,ysize)
+        xlim = .4*minsize/xsize
+        ylim = .4*minsize/ysize
+        if aspect < 1:
+            xlim *= aspect
+        else:
+            ylim /= aspect
+        fig.subplots_adjust(left=.5-xlim,
+                            right=.5+xlim,
+                            bottom=.5-ylim,
+                            top=.5+ylim)
 
 
     ''' Static Methods '''
