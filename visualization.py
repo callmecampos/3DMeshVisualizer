@@ -8,11 +8,11 @@ from bidict import bidict
 
 class Euler:
     '''A class for Euler Angles.'''
-
-    SCALE = 90
+    MAX = 90
+    SCALE = 0.5
 
     def __init__(self, roll, pitch):
-        if abs(roll) > Euler.SCALE or abs(pitch) > Euler.SCALE:
+        if abs(roll) > Euler.MAX or abs(pitch) > Euler.MAX:
             raise ValueError('Invalid Euler Angle, ' + \
                 'range should be between -90 and 90 degrees.')
 
@@ -37,7 +37,7 @@ class Euler:
         to the inertial frame given updated roll and pitch.
         '''
         result = Euler.rotation_op(self.roll, self.pitch)
-        return (-result[1] * .5, result[0] * .5, 0), \
+        return (-result[1] * Euler.SCALE, result[0] * Euler.SCALE, 0), \
             float(sqrt(result[0]**2 + result[1]**2))
 
     ''' Static Methods '''
@@ -109,9 +109,10 @@ class Network:
         addr -- the 5 character address of the mimsy board being updated
         '''
         index = self.mapping.get(addr)
-        proj, norm = Euler.fromAngles(data).rotate()
-        self.get_vec(index).axis = proj
-        self.setMimsyColor(index, b=0.5 + 0.5*norm)
+        if index is not None:
+            proj, norm = Euler.fromAngles(data).rotate()
+            self.get_vec(index).axis = proj
+            self.setMimsyColor(index, b=0.5 + 0.5*norm)
 
     def initGUI(self):
         '''
