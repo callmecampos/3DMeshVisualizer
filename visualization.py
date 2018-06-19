@@ -66,6 +66,7 @@ class Network:
     '''A Network class.'''
 
     _id = 0
+    DIMENSION = 2
     Z_OFFSET = 0.5
 
     def __init__(self, w, h, mapping):
@@ -172,9 +173,9 @@ class Network:
         '''
         Checks the shape of our input, throws a ValueError if formatted badly.
         '''
-        if self.inputs.shape != (self.w*self.h, 2):
+        if self.inputs.shape != (self.w*self.h, Network.DIMENSION):
             raise ValueError('Bad Input: Input shape is ' + str(self.inputs.shape) \
-                + ', should be (' + str(self.w*self.h) + ', 2)')
+                + ', should be (' + str(self.w*self.h) + ', ' + str(Network.DIMENSION)+ ')')
 
 
     ''' Static Methods '''
@@ -218,7 +219,7 @@ class Network:
                     'Inconsistent widths on lines 1 and ' + str(i))
             for j, addr in enumerate(addrs):
                 mapping.put(addr, i*len(addrs)+j)
-                if not re.match(regex, test):
+                if not re.match('[a-zA-Z0-9]{5}', addr):
                     raise RuntimeError('Setup file badly formatted: ' + \
                         'Mimsy board ID at position (' + \
                          str(j) + ', ' + str(i) + ') does not pass regex test.')
