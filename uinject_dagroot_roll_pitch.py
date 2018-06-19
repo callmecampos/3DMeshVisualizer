@@ -1,14 +1,10 @@
-import serial
-import threading
-import struct
-import binascii
-import datetime
-import argparse
+import serial, threading, struct
+import datetime, argparse, binascii
 from visualization import *
-from math import sin,cos,tan,radians,atan,sqrt
+from math import sin, cos, tan, radians, atan, sqrt
 
 parser = argparse.ArgumentParser()
-parser.add_argument("p", help='the DAG root port')
+parser.add_argument("--port", type=str, help='the DAG root port', required=False)
 args = parser.parse_args()
 
 class OpenHdlc(object):
@@ -267,4 +263,9 @@ def main():
 
 if __name__=="__main__":
     network = Network.initialize('setup.txt')
-    moteProbe('/dev/ttyUSB' + args.p, network)
+    proc = subprocess.Popen('ls', stdout=subprocess.PIPE)
+    ports = proc.stdout.read().split(' ')
+    if args.port is None:
+        moteProbe(ports[0], network)
+    else:
+        moteProbe('/dev/ttyUSB' + args.p, network)
