@@ -107,9 +107,10 @@ class Network:
         data -- a tuple
         init -- True if initializing a network, False otherwise
         '''
-
         index = self.mapping.get(addr)
-        self.get_vec(index).axis = (data[0], data[1], 0)
+        proj, norm = Euler.fromAngles(data).rotate()
+        self.get_vec(index).axis = proj
+        self.setMimsyColor(index, b=0.5 + 0.5*norm)
 
     def initGUI(self):
         '''
@@ -136,8 +137,11 @@ class Network:
         proj, norm = angle.rotate()
         v = arrow(pos=(x1,y1,Network.Z_OFFSET), axis=proj, shaftwidth=0.05, \
             color=(0, 0.5*(1 + norm), 0))
-        self.mimsies[i].color = (0, 0, 0.5*(1 + norm))
+        self.setMimsyColor(i, b=0.5 + 0.5*norm)
         self.vecs.append(v)
+
+    def setMimsyColor(self, i, r=0, g=0, b=0):
+        self.mimsies[i].color = (r, g, b)
 
     def quadrant_coors(self, ID):
         '''
@@ -191,10 +195,10 @@ class Network:
 
         mapping = bidict({})
         for i, line in enumerate(content):
-            addrs = line.replace(" ", "").split(',')
+            addrs = line.replace(" ", "").replace("\n", "").split(',')
             if not set:
                 w = len(addrs)
                 set = True
-            [mapping.put(addr, i*len(keys)+j) for j, addr in enumerate(addrs)]
+            [mapping.put(addr, i*len(addrs)+j) for j, addr in enumerate(addrs)]
 
         return cls(w, h, mapping=mapping)

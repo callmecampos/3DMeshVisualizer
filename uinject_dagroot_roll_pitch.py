@@ -246,7 +246,7 @@ class moteProbe(threading.Thread):
                                         myfile.write("Time[s]," + str((asn_initial[0] + asn_initial[1]*65536)*0.01) + ",Xacceleration[gs]," + str(Xaccel) + ",Yacceleration[gs]," + str(Yaccel) + ",Zacceleration[gs]," + str(Zaccel) + ",Temperature[C]," + str(temperature) + ",Address," + str('{:x}'.format(myAddr)) + '\n')
                                         with self.outputBufLock:
                                             self.outputBuf += [binascii.unhexlify(self.CMD_SEND_DATA)]
-                                        self.network.update(data=(roll, pitch), addr=str(myAddr))
+                                        self.network.update(data=(roll, pitch), addr=str('{:x}'.format(myAddr)))
 
 
 
