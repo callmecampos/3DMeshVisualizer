@@ -1,6 +1,6 @@
 from visual import *
 import numpy as np
-import random
+import random, re
 from math import sqrt, sin, cos, tan, atan, radians, pi
 from bidict import bidict
 
@@ -219,7 +219,7 @@ class Network:
                     'Inconsistent widths on lines 1 and ' + str(i))
             for j, addr in enumerate(addrs):
                 mapping.put(addr, i*len(addrs)+j)
-                if not re.match('[a-zA-Z0-9]{5}', addr):
+                if not re.match('[a-zA-Z0-9]{4}', addr):
                     raise RuntimeError('Setup file badly formatted: ' + \
                         'Mimsy board ID at position (' + \
                          str(j) + ', ' + str(i) + ') does not pass regex test.')
