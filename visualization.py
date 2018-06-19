@@ -104,8 +104,8 @@ class Network:
         Updates the state of our network.
 
         Keyword arguments:
-        data -- a tuple
-        init -- True if initializing a network, False otherwise
+        data -- a tuple of the format (roll, pitch)
+        addr -- the 5 character address of the mimsy board being updated
         '''
         index = self.mapping.get(addr)
         proj, norm = Euler.fromAngles(data).rotate()
@@ -130,9 +130,23 @@ class Network:
             self.set_vec(i, angle)
 
     def get_vec(self, i):
+        '''
+        Get the vector given by a linearized index.
+
+        Keyword arguments:
+        i -- the linearized index denoting the position of the vector
+        '''
         return self.vecs[i]
 
     def set_vec(self, i, angle):
+        '''
+        Sets the vector given by a linearized index with the given
+        Euler angles.
+
+        Keyword arguments:
+        i -- the linearized index denoting the position of the vector
+        angle -- the Euler Angle object denoting the rotation of the vector
+        '''
         x1, y1 = self.quadrant_coors(i)
         proj, norm = angle.rotate()
         v = arrow(pos=(x1,y1,Network.Z_OFFSET), axis=proj, shaftwidth=0.05, \
