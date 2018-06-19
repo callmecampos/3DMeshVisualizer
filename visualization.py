@@ -104,12 +104,12 @@ class Network:
         Updates the state of our network.
 
         Keyword arguments:
-        inputs -- a list with elements of format (roll, pitch)
+        data -- a tuple
         init -- True if initializing a network, False otherwise
         '''
 
-        # get vec from mapping
-        # set new params
+        index = self.mapping.get(addr)
+        self.get_vec(index).axis = (data[0], data[1], 0)
 
     def initGUI(self):
         '''
@@ -124,14 +124,20 @@ class Network:
         self.vecs = []
         self.angles = []
         for i, rpy in enumerate(self.inputs):
-            x1, y1 = self.quadrant_coors(i)
             angle = Euler.fromAngles(rpy)
             self.angles.append(angle)
-            proj, norm = angle.rotate()
-            v = arrow(pos=(x1,y1,Network.Z_OFFSET), axis=proj, shaftwidth=0.05, \
-                color=(0, 0.5*(1 + norm), 0))
-            self.mimsies[i].color = (0, 0, 0.5*(1 + norm))
-            self.vecs.append(v)
+            self.set_vec(i, angle)
+
+    def get_vec(self, i):
+        return self.vecs[i]
+
+    def set_vec(self, i, angle):
+        x1, y1 = self.quadrant_coors(i)
+        proj, norm = angle.rotate()
+        v = arrow(pos=(x1,y1,Network.Z_OFFSET), axis=proj, shaftwidth=0.05, \
+            color=(0, 0.5*(1 + norm), 0))
+        self.mimsies[i].color = (0, 0, 0.5*(1 + norm))
+        self.vecs.append(v)
 
     def quadrant_coors(self, ID):
         '''
@@ -185,10 +191,10 @@ class Network:
 
         mapping = bidict({})
         for i, line in enumerate(content):
-            keys = line.replace(" ", "").split(',')
+            addrs = line.replace(" ", "").split(',')
             if not set:
-                w = len(keys)
+                w = len(addrs)
                 set = True
-            [mapping.put(i*len(keys)+j, key) for j, key in enumerate(keys)]
+            [mapping.put(addr, i*len(keys)+j) for j, addr in enumerate(addrs)]
 
         return cls(w, h, mapping=mapping)
