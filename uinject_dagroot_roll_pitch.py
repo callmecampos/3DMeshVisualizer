@@ -4,7 +4,7 @@ from visualization import *
 from math import sin, cos, tan, radians, atan, sqrt
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--port", type=str, help='the DAG root port', required=False)
+parser.add_argument("--port", type=str, help='the DAG root serial port', required=False)
 args = parser.parse_args()
 
 class OpenHdlc(object):
@@ -210,7 +210,6 @@ class moteProbe(threading.Thread):
                                     with self.outputBufLock:
                                         if self.outputBuf:
                                             outputToWrite = self.outputBuf.pop(0)
-                                            #print ''.join(['{0:02x}'.format(ord(b)) for b in outputToWrite])
                                             self.serial.write(outputToWrite)
                                 elif self.inputBuf[0]==ord('D'):
                                     if self.UINJECT_MASK == ''.join(chr(i) for i in self.inputBuf[-7:]):
@@ -227,16 +226,9 @@ class moteProbe(threading.Thread):
                                         myAddr  = struct.unpack('<H',''.join([chr(b) for b in self.inputBuf[-15:-13]]))[0]
                                         temperature    = struct.unpack('<h',''.join([chr(b) for b in self.inputBuf[-17:-15]]))[0]
 
-                                        #asn_arrive  = struct.unpack('<HHB',''.join([chr(c) for c in self.inputBuf[-14:-9]]))
-                                        #counter     = struct.unpack('<h',''.join([chr(b) for b in self.inputBuf[-9:-7]]))[0]
-
                                         if self.last_counter!=None:
                                             if counter-self.last_counter!=1:
                                                 pass
-                                                #print 'MISSING {0} packets!!'.format(counter-self.last_counter-1)
-                                        #self.last_counter = counter
-                                        #print "{0:^7} {1:^15}".format(counter, self.SLOT_DURATION*((asn_inital[0]-asn_arrive[0])+(asn_inital[1]-asn_arrive[1])*256+(asn_inital[2]-asn_arrive[2])*65536))
-                                        #print str((asn_initial[0] + asn_initial[1]*65536)*0.01) + "," + str(Xaccel/16000.0) + "," + str(Yaccel/16000.0) + "," + str(Zaccel/16000.0) + "," + str(temperature) + "," + str('{:x}'.format(myAddr))
                                         print "Time[s]," + str((asn_initial[0] + asn_initial[1]*65536)*0.01) + ",Xacceleration[gs]," + str(Xaccel) + ",Yacceleration[gs]," + str(Yaccel) + ",Zacceleration[gs]," + str(Zaccel) + ",Temperature[C]," + str(temperature) + ",Address," + str('{:x}'.format(myAddr))
                                         print roll, pitch
                                         myfile.write("Time[s]," + str((asn_initial[0] + asn_initial[1]*65536)*0.01) + ",Xacceleration[gs]," + str(Xaccel) + ",Yacceleration[gs]," + str(Yaccel) + ",Zacceleration[gs]," + str(Zaccel) + ",Temperature[C]," + str(temperature) + ",Address," + str('{:x}'.format(myAddr)) + '\n')

@@ -157,6 +157,14 @@ class Network:
         self.vecs.append(v)
 
     def setMimsyColor(self, i, r=0, g=0, b=0):
+        '''
+        Sets the color of a block given the linearized index corresponding
+        with a specific mimsy board
+
+        Keyword arguments:
+        i -- the linearized index of the mimsy board / UI box
+        r, g, b -- the red, green, and blue channels, respectively
+        '''
         self.mimsies[i].color = (r, g, b)
 
     def quadrant_coors(self, ID):
@@ -220,7 +228,7 @@ class Network:
                     'Inconsistent widths on lines 1 and ' + str(i))
             for j, addr in enumerate(addrs):
                 mapping.put(addr, i*len(addrs)+j)
-                if not re.match('[a-zA-Z0-9]{4}', addr):
+                if not re.match('[a-z0-9]{4}', addr):
                     raise RuntimeError('Setup file badly formatted: ' + \
                         'Mimsy board ID at position (' + \
                          str(j) + ', ' + str(i) + ') does not pass regex test.')
