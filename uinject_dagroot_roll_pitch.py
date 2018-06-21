@@ -5,7 +5,10 @@ from math import sin, cos, tan, radians, atan, sqrt
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--port", type=str, help='the DAG root serial port', required=False)
+parser.add_argument("-t", "--testing", action='store_true', help='a testing flag for visualization')
 args = parser.parse_args()
+
+init_angles = {}
 
 class OpenHdlc(object):
 
@@ -234,7 +237,11 @@ class moteProbe(threading.Thread):
                                         myfile.write("Time[s]," + str((asn_initial[0] + asn_initial[1]*65536)*0.01) + ",Xacceleration[gs]," + str(Xaccel) + ",Yacceleration[gs]," + str(Yaccel) + ",Zacceleration[gs]," + str(Zaccel) + ",Temperature[C]," + str(temperature) + ",Address," + str('{:x}'.format(myAddr)) + '\n')
                                         with self.outputBufLock:
                                             self.outputBuf += [binascii.unhexlify(self.CMD_SEND_DATA)]
-                                        self.network.update(data=(roll, pitch), addr=str('{:x}'.format(myAddr)))
+
+                                        formattedAddr = str('{:x}'.format(myAddr))
+                                        if init_angles.get(formattedAddr) is None:
+                                            init_angles[formattedAddr] = (roll, pitch)
+                                        self.network.update(data=(roll-init_angles[formattedAddr][0], pitch-init_angles[formattedAddr][1]), addr=formattedAddr)
 
 
 
@@ -259,8 +266,8 @@ if __name__=="__main__":
         if args.port is None:
             proc = os.popen("ls /dev/ttyUSB*").read()
             ports = proc.split('\n')
-            moteProbe(ports[0], network)
+            moteProbe(ports[0], network, args.testing)
         else:
-            moteProbe('/dev/ttyUSB' + args.port, network)
+            moteProbe('/dev/ttyUSB' + args.port, network, args.testing)
     except OSError:
         pass

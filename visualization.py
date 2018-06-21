@@ -9,7 +9,7 @@ from bidict import bidict
 class Euler:
     '''A class for Euler Angles.'''
     MAX = 90
-    SCALE = 0.5
+    SCALE = 1
 
     def __init__(self, roll, pitch):
         if abs(roll) > Euler.MAX or abs(pitch) > Euler.MAX:
@@ -69,16 +69,19 @@ class Network:
     DIMENSION = 2
     Z_OFFSET = 0.5
 
-    def __init__(self, w, h, mapping):
+    def __init__(self, w, h, mapping, testing):
         self.w = w
         self.h = h
 
         self.mapping = mapping
 
+        if testing:
+            Euler.SCALE = 0.5
+
         self.scene = display(title='Network' + str(Network._id) + 'Visualization', x=0, y=0)
         self.scene.background = (0.5,0.5,0.5)
 
-        cx, cy = self.quadrant_coors(w*h // 2)
+        cx, cy = float(w) / 2 - .5, float(h) / 2 - .5
         cz = self.scene.center.z
         self.center = (cx, cy, cz)
         self.scene.center = (cx,cy,cz)
@@ -203,7 +206,7 @@ class Network:
     ''' Class Methods '''
 
     @classmethod
-    def initialize(cls, filename):
+    def initialize(cls, filename, testing):
         '''
         Parses a text file for the network format and initializes a new network.
 
@@ -218,7 +221,8 @@ class Network:
         set = False
 
         mapping = bidict({})
-        for i, line in enumerate(content):
+        print(list(reversed(content)))
+        for i, line in enumerate(list(reversed(content))):
             addrs = line.replace(" ", "").replace("\n", "").split(',')
             if not set:
                 w = len(addrs)
@@ -232,4 +236,4 @@ class Network:
                     raise RuntimeError('Setup file badly formatted: ' + \
                         'Mimsy board ID at position (' + \
                          str(j) + ', ' + str(i) + ') does not pass regex test.')
-        return cls(w, h, mapping=mapping)
+        return cls(w, h, mapping, testing)
