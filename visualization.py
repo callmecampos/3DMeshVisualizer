@@ -12,10 +12,6 @@ class Euler:
     SCALE = 1
 
     def __init__(self, roll, pitch):
-        if abs(roll) > Euler.MAX or abs(pitch) > Euler.MAX:
-            raise ValueError('Invalid Euler Angle, ' + \
-                'range should be between -90 and 90 degrees.')
-
         self.roll = roll
         self.pitch = pitch
 
@@ -95,11 +91,14 @@ class Network:
         self.mimsies = []
         for i in range(w*h):
             x0, y0 = self.quadrant_coors(i)
-            b = box(pos=(x0,y0,0), length=1, height=1, width=0.2, color=(1,1,1))
+            b = box(pos=(x0,y0,0), length=1, height=1, width=0.2, color=(1,0,0))
             self.mimsies.append(b)
 
         self.inputs = np.array([(0, 0) for k in range(w*h)])
         self.initGUI()
+
+        print(self.mapping)
+        print(len(self.vecs))
 
         Network._id += 1
 
@@ -132,7 +131,7 @@ class Network:
         for i, rpy in enumerate(self.inputs):
             angle = Euler.fromAngles(rpy)
             self.angles.append(angle)
-            self.set_vec(i, angle)
+            self.set_vec(i, angle, initializing=True)
 
     def get_vec(self, i):
         '''
@@ -143,7 +142,7 @@ class Network:
         '''
         return self.vecs[i]
 
-    def set_vec(self, i, angle):
+    def set_vec(self, i, angle, initializing=False):
         '''
         Sets the vector given by a linearized index with the given
         Euler angles.
@@ -156,7 +155,10 @@ class Network:
         proj, norm = angle.rotate()
         v = arrow(pos=(x1,y1,Network.Z_OFFSET), axis=proj, shaftwidth=0.05, \
             color=(0, 0.5*(1 + norm), 0))
-        self.setMimsyColor(i, b=0.5 + 0.5*norm)
+        if not initializing:
+            self.setMimsyColor(i, b=0.5 + 0.5*norm)
+        else:
+            self.setMimsyColor(i, r=1)
         self.vecs.append(v)
 
     def setMimsyColor(self, i, r=0, g=0, b=0):

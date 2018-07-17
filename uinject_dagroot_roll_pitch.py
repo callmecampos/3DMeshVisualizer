@@ -1,5 +1,5 @@
 import serial, threading, struct, os
-import datetime, argparse, binascii
+import datetime, argparse, binascii, traceback
 from visualization import *
 from math import sin, cos, tan, radians, atan, sqrt
 
@@ -136,6 +136,9 @@ class moteProbe(threading.Thread):
         self.serialport           = serialport
         self.network              = network
 
+        self.data                 = []
+        self.now                  = datetime.datetime.now()
+
         # local variables
         self.hdlc                 = OpenHdlc()
         self.lastRxByte           = self.hdlc.HDLC_FLAG
@@ -167,9 +170,6 @@ class moteProbe(threading.Thread):
 
                 self.serial = serial.Serial(self.serialport,'115200')
                 print "Network Forming..."
-                now = datetime.datetime.now()
-                myfilename = str(now.year)+"-"+str(now.month)+"-"+str(now.day)+"-"+str(now.hour)+"-"+str(now.minute)+"-"+str(now.second)+".csv"
-                myfile = open(myfilename,"w")
                 while self.goOn: # read bytes from serial port
 
                     try:
@@ -232,9 +232,11 @@ class moteProbe(threading.Thread):
                                         if self.last_counter!=None:
                                             if counter-self.last_counter!=1:
                                                 pass
-                                        print "Time[s]," + str((asn_initial[0] + asn_initial[1]*65536)*0.01) + ",Xacceleration[gs]," + str(Xaccel) + ",Yacceleration[gs]," + str(Yaccel) + ",Zacceleration[gs]," + str(Zaccel) + ",Temperature[C]," + str(temperature) + ",Address," + str('{:x}'.format(myAddr))
-                                        print roll, pitch
-                                        myfile.write("Time[s]," + str((asn_initial[0] + asn_initial[1]*65536)*0.01) + ",Xacceleration[gs]," + str(Xaccel) + ",Yacceleration[gs]," + str(Yaccel) + ",Zacceleration[gs]," + str(Zaccel) + ",Temperature[C]," + str(temperature) + ",Address," + str('{:x}'.format(myAddr)) + '\n')
+                                        if args.testing:
+                                            print "Time[s]," + str((asn_initial[0] + asn_initial[1]*65536)*0.01) + ",Xacceleration[gs]," + str(Xaccel) + ",Yacceleration[gs]," + str(Yaccel) + ",Zacceleration[gs]," + str(Zaccel) + ",Temperature[C]," + str(temperature) + ",Address," + str('{:x}'.format(myAddr))
+                                            print roll, pitch
+
+                                        self.data.append("Time[s]," + str((asn_initial[0] + asn_initial[1]*65536)*0.01) + ",Xacceleration[gs]," + str(Xaccel) + ",Yacceleration[gs]," + str(Yaccel) + ",Zacceleration[gs]," + str(Zaccel) + ",Temperature[C]," + str(temperature) + ",Address," + str('{:x}'.format(myAddr)) + '\n')
                                         with self.outputBufLock:
                                             self.outputBuf += [binascii.unhexlify(self.CMD_SEND_DATA)]
 
@@ -248,7 +250,14 @@ class moteProbe(threading.Thread):
                         self.lastRxByte = rxByte
 
         except Exception as err:
-            print err
+            traceback.print_exc()
+
+        now = self.now
+        myfilename = str(now.year)+"-"+str(now.month)+"-"+str(now.day)+"-"+str(now.hour)+"-"+str(now.minute)+"-"+str(now.second)+".csv"
+        myfile = open(myfilename,"w")
+
+        for line in self.data:
+            self.myfile.write(line)
 
     #======================== public ==========================================
 
@@ -261,13 +270,10 @@ def main():
     print 'poipoi'
 
 if __name__=="__main__":
-    network = Network.initialize('setup.txt')
-    try:
-        if args.port is None:
-            proc = os.popen("ls /dev/ttyUSB*").read()
-            ports = proc.split('\n')
-            moteProbe(ports[0], network, args.testing)
-        else:
-            moteProbe('/dev/ttyUSB' + args.port, network, args.testing)
-    except OSError:
-        pass
+    network = Network.initialize('setup.txt', args.testing)
+    if args.port is None:
+        proc = os.popen("ls /dev/ttyUSB*").read()
+        ports = proc.split('\n')
+        moteProbe(ports[0], network)
+    else:
+        moteProbe('/dev/ttyUSB' + args.port, network)
