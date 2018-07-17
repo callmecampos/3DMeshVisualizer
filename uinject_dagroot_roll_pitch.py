@@ -1,4 +1,4 @@
-import serial, threading, struct, os
+import serial, threading, struct, os, keyboard
 import datetime, argparse, binascii, traceback
 from visualization import *
 from math import sin, cos, tan, radians, atan, sqrt
@@ -8,7 +8,7 @@ parser.add_argument("--port", type=str, help='the DAG root serial port', require
 parser.add_argument("-t", "--testing", action='store_true', help='a testing flag for visualization')
 args = parser.parse_args()
 
-init_angles = {}
+init_angles, reset_flag, reset_buf = {}, True, []
 
 class OpenHdlc(object):
 
@@ -164,6 +164,10 @@ class moteProbe(threading.Thread):
     #======================== thread ==========================================
 
     def run(self):
+        now = self.now
+        myfilename = str(now.year)+"-"+str(now.month)+"-"+str(now.day)+"-"+str(now.hour)+"-"+str(now.minute)+"-"+str(now.second)+".csv"
+        self.myfile = open(myfilename,"w")
+
         try:
 
             while self.goOn:     # open serial port
@@ -224,25 +228,35 @@ class moteProbe(threading.Thread):
                                         Yaccel = Yaccel / 16000.0
                                         Zaccel  = struct.unpack('<h',''.join([chr(b) for b in self.inputBuf[-13:-11]]))[0]
                                         Zaccel = Zaccel / 16000.0
-                                        roll = atan(Yaccel/Zaccel)*180.0/3.14
-                                        pitch = atan(-Xaccel/sqrt(Yaccel**2 + Zaccel**2))*180.0/3.14
-                                        myAddr  = struct.unpack('<H',''.join([chr(b) for b in self.inputBuf[-15:-13]]))[0]
-                                        temperature    = struct.unpack('<h',''.join([chr(b) for b in self.inputBuf[-17:-15]]))[0]
+                                        roll, pitch, formattedAddr = atan(Yaccel/Zaccel)*180.0/3.14, \
+                                                    atan(-Xaccel/sqrt(Yaccel**2 + Zaccel**2))*180.0/3.14,\
+                                                    str('{:x}'.format(struct.unpack('<H',''.join([chr(b) for b in self.inputBuf[-15:-13]]))[0]))
+                                        temperature = struct.unpack('<h',''.join([chr(b) for b in self.inputBuf[-17:-15]]))[0]
+
+                                        if reset_flag and not reset_buf.contains(formattedAddr):
+                                            init_angles[formattedAddr] = (roll, pitch)
+                                            reset_buf.append(formattedAddr)
+                                            if len(reset_buf) == len(self.network): # have we updated every mimsy
+                                                reset_flag = False
+                                                reset_buf = []
+
+                                        data = "Time[s]," + str((asn_initial[0] + asn_initial[1]*65536)*0.01) + \
+                                                ",Xacceleration[gs]," + str(Xaccel) + ",Yacceleration[gs]," + str(Yaccel) + \
+                                                ",Zacceleration[gs]," str(Zaccel) + ",roll[deg]," + str(roll)  + ",off_r[deg]," + init_angles[formattedAddr][0] + \
+                                                ",pitch[deg]," + str(roll) + ",off_p[deg]," + init_angles[formattedAddr][1] + \
+                                                ",Temperature[C]," + str(temperature) + \
+                                                ",Address," + formattedAddr
 
                                         if self.last_counter!=None:
                                             if counter-self.last_counter!=1:
                                                 pass
                                         if args.testing:
-                                            print "Time[s]," + str((asn_initial[0] + asn_initial[1]*65536)*0.01) + ",Xacceleration[gs]," + str(Xaccel) + ",Yacceleration[gs]," + str(Yaccel) + ",Zacceleration[gs]," + str(Zaccel) + ",Temperature[C]," + str(temperature) + ",Address," + str('{:x}'.format(myAddr))
+                                            print data
                                             print roll, pitch
 
-                                        self.data.append("Time[s]," + str((asn_initial[0] + asn_initial[1]*65536)*0.01) + ",Xacceleration[gs]," + str(Xaccel) + ",Yacceleration[gs]," + str(Yaccel) + ",Zacceleration[gs]," + str(Zaccel) + ",Temperature[C]," + str(temperature) + ",Address," + str('{:x}'.format(myAddr)) + '\n')
+                                        self.myfile.write(data + "\n")
                                         with self.outputBufLock:
                                             self.outputBuf += [binascii.unhexlify(self.CMD_SEND_DATA)]
-
-                                        formattedAddr = str('{:x}'.format(myAddr))
-                                        if init_angles.get(formattedAddr) is None:
-                                            init_angles[formattedAddr] = (roll, pitch)
                                         self.network.update(data=(roll-init_angles[formattedAddr][0], pitch-init_angles[formattedAddr][1]), addr=formattedAddr)
 
 
@@ -251,13 +265,6 @@ class moteProbe(threading.Thread):
 
         except Exception as err:
             traceback.print_exc()
-
-        now = self.now
-        myfilename = str(now.year)+"-"+str(now.month)+"-"+str(now.day)+"-"+str(now.hour)+"-"+str(now.minute)+"-"+str(now.second)+".csv"
-        myfile = open(myfilename,"w")
-
-        for line in self.data:
-            self.myfile.write(line)
 
     #======================== public ==========================================
 
@@ -269,8 +276,13 @@ class moteProbe(threading.Thread):
 def main():
     print 'poipoi'
 
+def reset():
+    reset_flag = True
+    reset_buf = []
+
 if __name__=="__main__":
     network = Network.initialize('setup.txt', args.testing)
+    keyboard.hook_key('r', lambda: reset(), suppress=False)
     if args.port is None:
         proc = os.popen("ls /dev/ttyUSB*").read()
         ports = proc.split('\n')

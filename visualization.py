@@ -102,6 +102,9 @@ class Network:
 
         Network._id += 1
 
+    def __len__(self):
+        return self.w * self.h
+
     def update(self, data, addr):
         '''
         Updates the state of our network.
