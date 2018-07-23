@@ -242,7 +242,7 @@ class moteProbe(threading.Thread):
 
                                         data = "Time[s]," + str((asn_initial[0] + asn_initial[1]*65536)*0.01) + \
                                                 ",Xacceleration[gs]," + str(Xaccel) + ",Yacceleration[gs]," + str(Yaccel) + \
-                                                ",Zacceleration[gs]," str(Zaccel) + ",roll[deg]," + str(roll)  + ",off_r[deg]," + init_angles[formattedAddr][0] + \
+                                                ",Zacceleration[gs]," + str(Zaccel) + ",roll[deg]," + str(roll)  + ",off_r[deg]," + init_angles[formattedAddr][0] + \
                                                 ",pitch[deg]," + str(roll) + ",off_p[deg]," + init_angles[formattedAddr][1] + \
                                                 ",Temperature[C]," + str(temperature) + \
                                                 ",Address," + formattedAddr
@@ -277,6 +277,8 @@ def main():
     print 'poipoi'
 
 def reset():
+    global reset_flag
+    global reset_buf
     reset_flag = True
     reset_buf = []
 
