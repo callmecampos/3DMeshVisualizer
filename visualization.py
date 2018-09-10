@@ -1,7 +1,8 @@
 from visual import *
+import matplotlib.pyplot as plt
 import numpy as np
-import random, re
-from math import sqrt, sin, cos, tan, atan, radians, pi
+import random, re, csv
+from math import sqrt, sin, cos, tan, atan, radians, degrees, pi
 from bidict import bidict
 
 ''' CLASSES '''
@@ -209,7 +210,7 @@ class Network:
         del obj
 
     @staticmethod
-    def visualizeCSV(csv, out='output', extension='mp4'):
+    def visualizeCSV(csv_path, out='output', extension='mp4'):
         '''
         Parses a text file for the network format and initializes a new network.
 
@@ -218,35 +219,23 @@ class Network:
         csv -- a .CSV file with time-series data of mattress deformation data
         out -- the .mov file to output the animation to
         '''
-        net = Network.initialize()
-        '''
-        for line in csv:
-            update animation and write to movie
-        '''
 
-        fig, ax = plt.subplots(1, 1)
-        #ax.set_xlim([0, self.w])
-        #ax.set_ylim([0, self.h])
-        #ax.set_xticks(np.arange(0, self.w, 1))
-        #ax.set_yticks(np.arange(0, self.h, 1))
-        Network.adjust_fig_aspect(fig, float(self.w)/self.h)
         plt.xlim(-1,1)
         plt.ylim(-1,1)
-        # plt.quiver(*net.vecs)
         vec = plt.arrow(0, 0, 0, 0)
 
         i = 0
-        for line in open(csv):
-            csv_row = line.split()
-            print(csv_row)
-            '''
-            angle = Euler.fromAngles(rpy)
+        for line in csv.reader(open(csv_path)):
+            # mapping = dict(zip(line[::2], line[1::2]))
+            time, x_a, y_a, z_a, temp, mid = line[1::2]
+            time, x_a, y_a, z_a, temp = float(time), float(x_a), float(y_a), float(z_a), float(temp)
+            roll, pitch = degrees(atan(y_a / z_a)), degrees(atan(-x_a / sqrt(y_a**2 + z_a**2)))
+            angle = Euler(roll, pitch)
             proj, norm = angle.rotate()
             vec.remove()
             vec = plt.arrow(0, 0, *proj)
-            plt.savefig('frame' + i + '.png', bbox_inches='tight')
+            plt.savefig('frame' + str(i) + '.png', facecolor=(1.0, 0.5+0.5*norm, 1.0), bbox_inches='tight')
             i += 1
-            '''
 
         '''files = []
         for i, line in enumerate(csv): # FIXME: pseudocode
@@ -294,5 +283,5 @@ class Network:
                          str(j) + ', ' + str(i) + ') does not pass regex test.')
         return cls(w, h, mapping, testing)
 
-if name == '__main__':
+if __name__ == '__main__':
     Network.visualizeCSV('test.csv')
