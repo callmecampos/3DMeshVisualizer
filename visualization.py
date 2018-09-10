@@ -208,6 +208,57 @@ class Network:
         obj.visible = False
         del obj
 
+    @staticmethod
+    def visualizeCSV(csv, out='output', extension='mp4'):
+        '''
+        Parses a text file for the network format and initializes a new network.
+
+
+        Keyword arguments:
+        csv -- a .CSV file with time-series data of mattress deformation data
+        out -- the .mov file to output the animation to
+        '''
+        net = Network.initialize()
+        '''
+        for line in csv:
+            update animation and write to movie
+        '''
+
+        fig, ax = plt.subplots(1, 1)
+        #ax.set_xlim([0, self.w])
+        #ax.set_ylim([0, self.h])
+        #ax.set_xticks(np.arange(0, self.w, 1))
+        #ax.set_yticks(np.arange(0, self.h, 1))
+        Network.adjust_fig_aspect(fig, float(self.w)/self.h)
+        plt.xlim(-1,1)
+        plt.ylim(-1,1)
+        # plt.quiver(*net.vecs)
+        vec = plt.arrow(0, 0, 0, 0)
+
+        i = 0
+        for line in open(csv):
+            csv_row = line.split()
+            print(csv_row)
+            '''
+            angle = Euler.fromAngles(rpy)
+            proj, norm = angle.rotate()
+            vec.remove()
+            vec = plt.arrow(0, 0, *proj)
+            plt.savefig('frame' + i + '.png', bbox_inches='tight')
+            i += 1
+            '''
+
+        '''files = []
+        for i, line in enumerate(csv): # FIXME: pseudocode
+            plt.cla()
+            plt.imshow(np.random.rand(5, 5), interpolation='nearest')
+            fname = '_tmp%03d.png' % i
+            print('Saving frame', fname)
+            plt.savefig(fname)
+            files.append(fname)
+        anim = animation.FuncAnimation(fig, update_quiver, fargs=(Q, X, Y),
+                           interval=50, blit=False)'''
+
     ''' Class Methods '''
 
     @classmethod
@@ -242,3 +293,6 @@ class Network:
                         'Mimsy board ID at position (' + \
                          str(j) + ', ' + str(i) + ') does not pass regex test.')
         return cls(w, h, mapping, testing)
+
+if name == '__main__':
+    Network.visualizeCSV('test.csv')
