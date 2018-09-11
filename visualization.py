@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-import csv, os, imageio
+import csv, os, sys, imageio
 
 imageio.plugins.ffmpeg.download()
 
@@ -92,14 +92,16 @@ class Network:
             plt.savefig(files[i], facecolor=(1.0, 0.5+0.5*norm, 1.0), bbox_inches='tight')
             i += 1
 
-        writer = imageio.get_writer(csv_path + '.mp4', fps=1)
+        kargs = { 'macro_block_size' : None }
+        writer = imageio.get_writer(csv_path.replace(".csv", "") + '.mp4', fps=1, **kargs)
 
-        for im in files:
-            writer.append_data(imageio.imread(im))
+        for im in reversed(files):
+            print(im)
+            writer.append_data(imageio.imread(im)[:, :, :])
         writer.close()
 
-        for file in files:
-            os.remove(file) # cleanup
+#        for file in files:
+#            os.remove(file) # cleanup
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:
