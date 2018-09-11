@@ -224,7 +224,7 @@ class Network:
         plt.ylim(-1,1)
         vec = plt.arrow(0, 0, 0, 0)
 
-        i = 0
+        i, files = 0, []
         for line in csv.reader(open(csv_path)):
             # mapping = dict(zip(line[::2], line[1::2]))
             time, x_a, y_a, z_a, temp, mid = line[1::2]
@@ -234,8 +234,13 @@ class Network:
             proj, norm = angle.rotate()
             vec.remove()
             vec = plt.arrow(0, 0, *proj)
-            plt.savefig('frame' + str(i) + '.png', facecolor=(1.0, 0.5+0.5*norm, 1.0), bbox_inches='tight')
+            files.append('_frame' + str(i) + '.png') # TODO: tweak so fps converts to correct timestamp in seconds
+            plt.savefig(files[i], facecolor=(1.0, 0.5+0.5*norm, 1.0), bbox_inches='tight')
             i += 1
+
+        os.system("mencoder 'mf://_frame*.png' -mf type=png:fps=10 -ovc lavc -lavcopts vcodec=wmv2 -oac copy -o animation.mpg")
+        for fname in files:
+            os.remove(fname) # cleanup
 
         '''files = []
         for i, line in enumerate(csv): # FIXME: pseudocode
