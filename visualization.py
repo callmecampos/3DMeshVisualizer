@@ -1,9 +1,10 @@
-from visual import *
 import matplotlib.pyplot as plt
+import csv, os, imageio
+
+imageio.plugins.ffmpeg.download()
+
 import numpy as np
-import random, re, csv, os, imageio
 from math import sqrt, sin, cos, tan, atan, radians, degrees, pi
-from bidict import bidict
 
 ''' CLASSES '''
 
@@ -60,157 +61,10 @@ class Euler:
         return -sin(theta), cos(theta) * sin(phi)
 
 class Network:
-    '''A Network class.'''
-
-    _id = 0
-    DIMENSION = 2
-    Z_OFFSET = 0.5
-
-    def __init__(self, w, h, mapping, testing):
-        self.w = w
-        self.h = h
-
-        self.mapping = mapping
-
-        if testing:
-            Euler.SCALE = 0.5
-
-        self.scene = display(title='Network' + str(Network._id) + 'Visualization', x=0, y=0)
-        self.scene.background = (0.5,0.5,0.5)
-
-        cx, cy = float(w) / 2 - .5, float(h) / 2 - .5
-        cz = self.scene.center.z
-        self.center = (cx, cy, cz)
-        self.scene.center = (cx,cy,cz)
-        self.scene.forward = (0,0,-1)
-        self.scene.range = max(w, h)
-
-        self.scene.lights = [vector(1,0,0), vector(0, 1, 0), vector(0, 0, 1), \
-            vector(-1,0,0), vector(0, -1, 0), vector(0, 0, -1)]
-        self.scene.ambient = 0
-
-        self.mimsies = []
-        for i in range(w*h):
-            x0, y0 = self.quadrant_coors(i)
-            b = box(pos=(x0,y0,0), length=1, height=1, width=0.2, color=(1,0,0))
-            self.mimsies.append(b)
-
-        self.inputs = np.array([(0, 0) for k in range(w*h)])
-        self.initGUI()
-
-        print(self.mapping)
-        print(len(self.vecs))
-
-        Network._id += 1
-
-    def __len__(self):
-        return self.w * self.h
-
-    def update(self, data, addr):
-        '''
-        Updates the state of our network.
-
-        Keyword arguments:
-        data -- a tuple of the format (roll, pitch)
-        addr -- the 5 character address of the mimsy board being updated
-        '''
-        index = self.mapping.get(addr)
-        if index is not None:
-            proj, norm = Euler.fromAngles(data).rotate()
-            self.get_vec(index).axis = proj
-            self.setMimsyColor(index, b=0.5 + 0.5*norm)
-
-    def initGUI(self):
-        '''
-        Initializes the GUI for our network.
-
-        Keyword arguments:
-        inputs -- a list with elements of format (roll, pitch)
-        '''
-
-        self.checkInput()
-
-        self.vecs = []
-        self.angles = []
-        for i, rpy in enumerate(self.inputs):
-            angle = Euler.fromAngles(rpy)
-            self.angles.append(angle)
-            self.set_vec(i, angle, initializing=True)
-
-    def get_vec(self, i):
-        '''
-        Get the vector given by a linearized index.
-
-        Keyword arguments:
-        i -- the linearized index denoting the position of the vector
-        '''
-        return self.vecs[i]
-
-    def set_vec(self, i, angle, initializing=False):
-        '''
-        Sets the vector given by a linearized index with the given
-        Euler angles.
-
-        Keyword arguments:
-        i -- the linearized index denoting the position of the vector
-        angle -- the Euler Angle object denoting the rotation of the vector
-        '''
-        x1, y1 = self.quadrant_coors(i)
-        proj, norm = angle.rotate()
-        v = arrow(pos=(x1,y1,Network.Z_OFFSET), axis=proj, shaftwidth=0.05, \
-            color=(0, 0.5*(1 + norm), 0))
-        if not initializing:
-            self.setMimsyColor(i, b=0.5 + 0.5*norm)
-        else:
-            self.setMimsyColor(i, r=1)
-        self.vecs.append(v)
-
-    def setMimsyColor(self, i, r=0, g=0, b=0):
-        '''
-        Sets the color of a block given the linearized index corresponding
-        with a specific mimsy board
-
-        Keyword arguments:
-        i -- the linearized index of the mimsy board / UI box
-        r, g, b -- the red, green, and blue channels, respectively
-        '''
-        self.mimsies[i].color = (r, g, b)
-
-    def quadrant_coors(self, ID):
-        '''
-        Given some linearized index, returns the (x, y) pair denoting
-        the location of the board in the network.
-
-        Keyword arguments:
-        ID -- the linearized index
-        '''
-        x, y = ID % self.w, ID // self.w
-        return x, y
-
-    def checkInput(self):
-        '''
-        Checks the shape of our input, throws a ValueError if formatted badly.
-        '''
-        if self.inputs.shape != (self.w*self.h, Network.DIMENSION):
-            raise ValueError('Bad Input: Input shape is ' + str(self.inputs.shape) \
-                + ', should be (' + str(self.w*self.h) + ', ' + str(Network.DIMENSION)+ ')')
-
-
-    ''' Static Methods '''
+    '''A Stripped Network class.'''
 
     @staticmethod
-    def rm(obj):
-        '''
-        Removes an object from our scene and from memory.
-
-        Keyword arguments:
-        obj -- the visual Python object in our scene
-        '''
-        obj.visible = False
-        del obj
-
-    @staticmethod
-    def visualizeCSV(csv_path, out='output', extension='mp4'):
+    def visualizeCSV(csv_path, extension='mp4'):
         '''
         Parses a text file for the network format and initializes a new network.
 
@@ -238,7 +92,7 @@ class Network:
             plt.savefig(files[i], facecolor=(1.0, 0.5+0.5*norm, 1.0), bbox_inches='tight')
             i += 1
 
-        writer = imageio.get_writer('animation.mp4', fps=1)
+        writer = imageio.get_writer(csv_path + '.mp4', fps=1)
 
         for im in files:
             writer.append_data(imageio.imread(im))
@@ -247,51 +101,8 @@ class Network:
         for file in files:
             os.remove(file) # cleanup
 
-        '''files = []
-        for i, line in enumerate(csv): # FIXME: pseudocode
-            plt.cla()
-            plt.imshow(np.random.rand(5, 5), interpolation='nearest')
-            fname = '_tmp%03d.png' % i
-            print('Saving frame', fname)
-            plt.savefig(fname)
-            files.append(fname)
-        anim = animation.FuncAnimation(fig, update_quiver, fargs=(Q, X, Y),
-                           interval=50, blit=False)'''
-
-    ''' Class Methods '''
-
-    @classmethod
-    def initialize(cls, filename, testing):
-        '''
-        Parses a text file for the network format and initializes a new network.
-
-        Keyword arguments:
-        filename -- the name of the file to parse (ideally text)
-        '''
-        f = open(filename, "r")
-        content = f.readlines()
-
-        h = len(content)
-        w = 0
-        set = False
-
-        mapping = bidict({})
-        print(list(reversed(content)))
-        for i, line in enumerate(list(reversed(content))):
-            addrs = line.replace(" ", "").replace("\n", "").split(',')
-            if not set:
-                w = len(addrs)
-                set = True
-            elif w != len(addrs):
-                raise RuntimeError('Setup file badly formatted: ' + \
-                    'Inconsistent widths on lines 1 and ' + str(i))
-            for j, addr in enumerate(addrs):
-                mapping.put(addr, i*len(addrs)+j)
-                if not re.match('[a-z0-9]{4}', addr):
-                    raise RuntimeError('Setup file badly formatted: ' + \
-                        'Mimsy board ID at position (' + \
-                         str(j) + ', ' + str(i) + ') does not pass regex test.')
-        return cls(w, h, mapping, testing)
-
 if __name__ == '__main__':
-    Network.visualizeCSV('test.csv')
+    if len(sys.argv) == 1:
+        Network.visualizeCSV('mimsy.csv')
+    elif len(sys.argv) == 2:
+        Network.visualizeCSV(sys.argv[1])
