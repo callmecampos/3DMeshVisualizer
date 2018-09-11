@@ -1,7 +1,7 @@
 from visual import *
 import matplotlib.pyplot as plt
 import numpy as np
-import random, re, csv
+import random, re, csv, os, imageio
 from math import sqrt, sin, cos, tan, atan, radians, degrees, pi
 from bidict import bidict
 
@@ -238,9 +238,14 @@ class Network:
             plt.savefig(files[i], facecolor=(1.0, 0.5+0.5*norm, 1.0), bbox_inches='tight')
             i += 1
 
-        os.system("mencoder 'mf://_frame*.png' -mf type=png:fps=10 -ovc lavc -lavcopts vcodec=wmv2 -oac copy -o animation.mpg")
-        for fname in files:
-            os.remove(fname) # cleanup
+        writer = imageio.get_writer('animation.mp4', fps=1)
+
+        for im in files:
+            writer.append_data(imageio.imread(im))
+        writer.close()
+
+        for file in files:
+            os.remove(file) # cleanup
 
         '''files = []
         for i, line in enumerate(csv): # FIXME: pseudocode
