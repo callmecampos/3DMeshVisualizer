@@ -3,7 +3,7 @@ Time[s],81.40,Xacceleration[gs],0.116,Yacceleration[gs],0.432,Zacceleration[gs],
 Time[s],82.41,Xacceleration[gs],0.234,Yacceleration[gs],0.342,Zacceleration[gs],0.84512,Temperature[C],26,Address,dcb4
 Time[s],83.39,Xacceleration[gs],0.015,Yacceleration[gs],0.031,Zacceleration[gs],1.05645,Temperature[C],28,Address,dcb4
 Time[s],84.40,Xacceleration[gs],0.116,Yacceleration[gs],0.632,Zacceleration[gs],0.33648,Temperature[C],31,Address,dcb4
-Time[s],85.41,Xacceleration[gs],0.234,Yacceleration[gs],-0.142,Zacceleration[gs],0.74512,Temperature[C],35,Address,dcb4
+Time[s],85.41,Xacceleration[gs],0.234,Yacceleration[gs],-1.000,Zacceleration[gs],0.0000,Temperature[C],35,Address,dcb4
 Time[s],86.39,Xacceleration[gs],0.015,Yacceleration[gs],-0.731,Zacceleration[gs],0.25645,Temperature[C],36,Address,dcb4
 Time[s],87.40,Xacceleration[gs],0.116,Yacceleration[gs],-0.432,Zacceleration[gs],0.63648,Temperature[C],34,Address,dcb4
 Time[s],88.41,Xacceleration[gs],0.234,Yacceleration[gs],-0.342,Zacceleration[gs],0.84512,Temperature[C],35,Address,dcb4

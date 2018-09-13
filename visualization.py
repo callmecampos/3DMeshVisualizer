@@ -96,7 +96,7 @@ class Network:
         csv -- a .CSV file with time-series data of mattress deformation data
         out -- the .mov file to output the animation to
         '''
-        
+
         csv_data, temp_range = None, None
         try:
             csv_data, temp_range = Network.parseCSV(csv_path)
@@ -109,29 +109,40 @@ class Network:
         plt.ylim(-1,1)
         vec = plt.arrow(0, 0, 0, 0)
 
-        i, files = 0, []
+        i, files, removed = 0, [], []
         # kargs = { 'macro_block_size' : None } # include **kargs in writer if running in linux
         writer = imageio.get_writer(os.path.join(output_path, os.path.basename(csv_path).replace(".csv", "") + '.mp4'), fps=1)
-        try:
-            for elem in csv_data:
+        for elem in csv_data:
+            try:
                 # mapping = dict(zip(line[::2], line[1::2]))
                 time, x_a, y_a, z_a, temp, mid = elem
-                roll, pitch = degrees(atan(y_a / z_a)), degrees(atan(-x_a / sqrt(y_a**2 + z_a**2)))
+                try:
+                    roll, pitch = degrees(atan(y_a / z_a)), degrees(atan(-x_a / sqrt(y_a**2 + z_a**2)))
+                except:
+                    print("[Visualization]: Line " + str(i) + " at time " + str(time) + " had invalid roll/pitch projection, skipping.")
+                    continue
                 angle = Euler(roll, pitch)
                 proj, norm = angle.rotate()
                 vec.remove()
                 vec = plt.arrow(0, 0, *proj, head_width=0.03, head_length=0.05)
                 rgb = Network.temperatureGradientRGB(temp, *temp_range)
                 plt.title("Time (s): " + str(time) + " | Temp ($^\circ$C): " + str(temp))
-                files.append('_frame' + str(i) + '.png') # TODO: tweak so fps converts to correct timestamp in seconds
+                fname = '_frame' + str(i) + '.png'
+                files.append(fname) # TODO: tweak so fps converts to correct timestamp in seconds
                 plt.savefig(files[i], figsize=(6.66, 4.35), dpi=100, facecolor=rgb, bbox_inches='tight')
                 writer.append_data(imageio.imread(files[i])[:, :, :])
                 os.remove(files[i])
+                removed.append(fname)
                 i += 1
-        except:
-            print("[Visualizer]: something went wrong.")
-            traceback.print_exc()
+            except:
+                print("[Visualizer]: something went wrong.")
+                traceback.print_exc()
         writer.close()
+
+        if len(files) != len(removed): # error-handling cleanup
+            for file in files:
+                if not removed.contains(file):
+                    os.remove(file)
 
 if __name__ == '__main__':
     if not sys.warnoptions:
