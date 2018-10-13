@@ -5,7 +5,7 @@ from math import sqrt, sin, cos, tan, atan, radians, pi
 from bidict import bidict
 from getpass import getuser
 from Tkinter import Tk
-from tkinter.filedialog import askopenfilename, askdirectory
+from tkFileDialog import askopenfilename, askdirectory
 
 ''' CLASSES '''
 
@@ -387,6 +387,7 @@ if __name__ == '__main__':
     if not sys.warnoptions:
         warnings.simplefilter("ignore")
     Tk().withdraw()
-    csv_path = askopenfilename(initialdir="C:/Users/%s" % getuser(), title="Select your data file to visualize.", filetypes=(("CSV Files", "*.csv"),))
-    output_path = askdirectory(initialdir=csv_path, title="Select where the output should be saved.")
-    peer(csv_path, output_path)
+    csv_path = askopenfilename(initialdir="./", title="Select your data file to visualize.", filetypes=(("CSV Files", "*.csv"),))
+    setup_path = askdirectory(initialdir="./", title="Select the setup file path.")
+    output_path = raw_input("Specify the name of the output file: ")
+    peer(csv_path, output_path, setup_path)
