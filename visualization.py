@@ -74,7 +74,7 @@ class Mimsy:
         self.prev = previous
 
     def __repr__(self):
-        return '(addr: {} roll: {} pitch: {} z: {})'.format(self.address(), self.roll(), self.pitch(), self.euler.rotate()[1])
+        return '(addr: {} roll: {} pitch: {} z: {})'.format(self.address(), self.roll(), self.pitch(), self.proj_z())
 
     def roll(self):
         return self.orientation[0] - self.euler_offset[0]
@@ -84,6 +84,9 @@ class Mimsy:
 
     def rotation(self):
         return (self.roll(), self.pitch())
+
+    def proj_z(self):
+        return self.euler.rotate()[1]
 
     def time(self):
         return self.t
@@ -301,9 +304,9 @@ def peer(dataCSV, writeCSV, setup):
 
     'a'  -- backward 10 seconds
     'd'  -- forward 10 seconds
-    'w' -- backward 1 mimsy update
-    's' -- forward 1 mimsy update
-    ' ' -- save current mimsy state
+    'j' -- backward 1 mimsy update
+    'l' -- forward 1 mimsy update
+    's' -- save current mimsy state
 
     Keyword arguments:
     dataCSV -- the relative path of the .csv file filled with mimsy data to parse
@@ -394,7 +397,10 @@ def peer(dataCSV, writeCSV, setup):
                 if m and time - m.time() >= update_latency_threshold:
                     network.setMimsyColor(network.mapping.get(m.address()), r=1) # fell out of network
         elif key == 's': # write current state to csv
-            out.write(str(state_map) + '\n')
+            out.write(str(time) + ",")
+            for elem in state_map.items():
+                out.write("{},{},".format(elem[0],elem[1].proj_z()))
+            out.write("\n")
             print('Wrote to csv at ASN: ' + str(time))
         elif key == 'p':
             print('State Mapping: ' + str(state_map))
