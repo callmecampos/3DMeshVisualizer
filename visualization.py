@@ -67,19 +67,23 @@ class Mimsy:
     def __init__(self, addr, g_x, g_y, g_z, roll, pitch, yaw, time, roll_off, pitch_off, previous=None):
         self.addr = addr
         self.t = time
-        self.euler = (roll, pitch, yaw)
+        self.euler = Euler(roll - roll_off, pitch - pitch_off)
+        self.orientation = (roll, pitch, yaw)
         self.euler_offset = (roll_off, pitch_off)
         self.accelerometer = (g_x, g_y, g_z)
-        self.previous = previous
+        self.prev = previous
+
+    def __repr__(self):
+        return '(addr: {} roll: {} pitch: {} z: {})'.format(self.address(), self.roll(), self.pitch(), self.euler.rotate()[1])
 
     def roll(self):
-        return self.euler[0] - self.euler_offset[0]
+        return self.orientation[0] - self.euler_offset[0]
 
     def pitch(self):
-        return self.euler[1] - self.euler_offset[1]
+        return self.orientation[1] - self.euler_offset[1]
 
-    def euler(self):
-        return (self.roll, self.pitch)
+    def rotation(self):
+        return (self.roll(), self.pitch())
 
     def time(self):
         return self.t
@@ -248,8 +252,8 @@ class Network:
         extract_float = lambda string: float(re.findall(r"[-+]?\d*\.\d+|[-+]?\d+", string)[0])
         csv_data = []
         for line in csv.reader(open(path)):
-            addr = line[7]
-            g_x, g_y, g_z, roll, pitch, yaw, time, roll_off, pitch_off = (extract_float(elem) for i, elem in enumerate(line) if i != 7)
+            addr = line[6].replace(" addr: ", "")
+            g_x, g_y, g_z, roll, pitch, yaw, time, roll_off, pitch_off = (extract_float(elem) for i, elem in enumerate(line) if i != 6)
             csv_data.append(Mimsy(addr, g_x, g_y, g_z, roll, pitch, yaw, time, roll_off, pitch_off))
         return csv_data
 
@@ -322,7 +326,8 @@ def peer(dataCSV, writeCSV, setup):
 
     def forward_update(i):
         mimsy = csv_data[i]
-        network.update(data=mimsy.euler(), addr=mimsy.address())
+        print(mimsy.rotation())
+        network.update(data=mimsy.rotation(), addr=mimsy.address())
         if not mimsy.hasPrevious():
             mimsy.setPrevious(state_map[mimsy.address()])
         state_map[mimsy.address()] = mimsy
@@ -331,63 +336,78 @@ def peer(dataCSV, writeCSV, setup):
     def backward_update(i):
         mimsy = csv_data[i]
         if mimsy.hasPrevious():
-            network.update(data=mimsy.previous().euler(), addr=mimsy.previous.address())
-            state_map[mimsy.address()] = mimsy.previous()
+            network.update(data=mimsy.previous().rotation(), addr=mimsy.previous().address())
         else:
             network.update(data=(0.0, 0.0), addr=mimsy.address())
             network.setMimsyColor(network.mapping.get(mimsy.address()), r=1) # hasn't joined network yet
+        state_map[mimsy.address()] = mimsy.previous()
         return mimsy.previous()
 
     # open csv
-    with open(writeCSV, 'w+') as out:
-        i, time = -1, -1
-        while i < len(csv_data):
-            key = keyboard.read_key() # wait for key press
-            if key == 'a': # move backward ten seconds
-                if i <= 0:
-                    print("You're already at the beginning.")
-                    continue
-                new_time = time
-                while i > 0 and time - new_time < 10.0:
-                    previous = backward_update(i)
-                    new_time = max([m.time() for m in state_map.values() if m])
-                    i -= 1
-                    for m in state_map.values():
-                        if m and new_time - m.time() >= update_latency_threshold:
-                            network.setMimsyColor(network.mapping.get(m.address()), r=1) # fell out of network
-                time = new_time
-            elif key == 'd': # move forward ten seconds
-                new_time = time
-                while i < len(csv_data) and new_time - time < 10.0:
-                    i += 1; new_time = forward_update(i).time()
-                    for m in state_map.values():
-                        if m and new_time - m.time() >= update_latency_threshold:
-                            network.setMimsyColor(network.mapping.get(m.address()), r=1) # fell out of network
-                time = new_time
-            elif key == 'j': # move backward one mimsy update
-                if i == 0:
-                    print("You're already at the beginning.")
-                    continue
+    out = open(writeCSV, 'a')
+    out.write('Start:\n')
+    i, time = -1, -1
+    while i < len(csv_data):
+        event = keyboard.read_event() # wait for key press
+        if event.event_type == 'up':
+            continue
+        key = event.name
+        if key == 'a': # move backward ten seconds
+            if i <= 0:
+                print("You're already at the beginning.")
+                continue
+            new_time = time
+            while i > 0 and time - new_time < 10.0:
                 previous = backward_update(i)
-                time = max([m.time() for m in state_map.values() if m])
+                times = [m.time() for m in state_map.values() if m]
+                new_time = max(times) if times else time
                 i -= 1
                 for m in state_map.values():
-                    if m and time - m.time() >= update_latency_threshold:
+                    if m and new_time - m.time() >= update_latency_threshold:
                         network.setMimsyColor(network.mapping.get(m.address()), r=1) # fell out of network
-            elif key == 'l': # move forward one mimsy update
-                i += 1; time = update_network(i).time()
+            time = new_time
+        elif key == 'd': # move forward ten seconds
+            new_time = time
+            while i < len(csv_data) - 1 and new_time - time < 10.0:
+                i += 1; new_time = forward_update(i).time()
                 for m in state_map.values():
-                    if m and time - m.time() >= update_latency_threshold:
+                    if m and new_time - m.time() >= update_latency_threshold:
                         network.setMimsyColor(network.mapping.get(m.address()), r=1) # fell out of network
-            elif key == 'p': # write current state to csv
-                out.write(str(state_map) + '\n')
-                print('Wrote to csv at ASN: ' + str(time))
+            time = new_time
+        elif key == 'j': # move backward one mimsy update
+            if i < 0:
+                print("You're already at the beginning.")
+                continue
+            previous = backward_update(i)
+            times = [m.time() for m in state_map.values() if m]
+            time = max(times) if times else time
+            i -= 1
+            for m in state_map.values():
+                if m and time - m.time() >= update_latency_threshold:
+                    network.setMimsyColor(network.mapping.get(m.address()), r=1) # fell out of network
+        elif key == 'l': # move forward one mimsy update
+            if i == len(csv_data) - 1:
+                print("You're at the end of the CSV data.")
+                continue
+            i += 1; time = forward_update(i).time()
+            for m in state_map.values():
+                if m and time - m.time() >= update_latency_threshold:
+                    network.setMimsyColor(network.mapping.get(m.address()), r=1) # fell out of network
+        elif key == 's': # write current state to csv
+            out.write(str(state_map) + '\n')
+            print('Wrote to csv at ASN: ' + str(time))
+        elif key == 'p':
+            print('State Mapping: ' + str(state_map))
+        elif key == 'q':
+            break
+    out.close()
+    print('Done.')
 
 if __name__ == '__main__':
     if not sys.warnoptions:
         warnings.simplefilter("ignore")
     Tk().withdraw()
     csv_path = askopenfilename(initialdir="./", title="Select your data file to visualize.", filetypes=(("CSV Files", "*.csv"),))
-    setup_path = askdirectory(initialdir="./", title="Select the setup file path.")
+    setup_path = askopenfilename(initialdir="./", title="Select the setup file path.", filetypes=(("Text Files", "*.txt"),))
     output_path = raw_input("Specify the name of the output file: ")
     peer(csv_path, output_path, setup_path)
