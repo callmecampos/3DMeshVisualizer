@@ -3,11 +3,18 @@ import datetime, binascii, random, re, keyboard
 import numpy as np
 from visual import *
 from math import sqrt, sin, cos, tan, atan, radians, sqrt, pi
+from time import time
 from bidict import bidict
+from collections import deque
 from Tkinter import Tk
 from tkFileDialog import askopenfilename
 
-init_angles, reset_flag, reset_buf = {}, True, []
+''' UTILS '''
+
+init_angles, reset_flag, reset_buf = {}, True, True, []
+
+def argmax(iterable, f=lambda x : x):
+    return max(enumerate(map(f, iterable)), key=lambda x: x[1])[0]
 
 ''' CLASSES '''
 
@@ -368,11 +375,24 @@ class moteProbe(threading.Thread):
     SLOT_DURATION   = 0.015
     UINJECT_MASK    = 'uinject'
 
+    init_angles, calibrating, reset_flag, reset_buf = {}, True, True, []
+    x_c, y_c, z_c, i_c, state = 0, 0, 0, 0, 0
+    t_init = time()
+    g_index, forward_index, side_index = 2, 0, 1
+    g_sign, f_sign, s_sign = 1, 1, 1
+
     def __init__(self,serialport=None, network=None):
+
+        low_pass_buffer = deque(maxlen=5)
 
         # store params
         self.serialport           = serialport
         self.network              = network
+        self.calibrating          = True # FIXME: check for preset text file
+        self.calibration_check    = { elem : 0 for elem in network.mapping.keys() }
+        self.calib_rotation       = { elem : np.eye(3) for elem in network.mapping.keys() }
+
+        self.x_c, self.y_c, self.z_c, self.i_c = 0, 0, 0, 0
 
         self.data                 = []
         self.now                  = datetime.datetime.now()
@@ -466,40 +486,125 @@ class moteProbe(threading.Thread):
                                         Yaccel = Yaccel / 16000.0
                                         Zaccel  = struct.unpack('<h',''.join([chr(b) for b in self.inputBuf[-13:-11]]))[0]
                                         Zaccel = Zaccel / 16000.0
-                                        roll, pitch, formattedAddr = atan(Yaccel/Zaccel)*180.0/3.14, \
-                                                    atan(-Xaccel/sqrt(Yaccel**2 + Zaccel**2))*180.0/3.14,\
-                                                    str('{:x}'.format(struct.unpack('<H',''.join([chr(b) for b in self.inputBuf[-15:-13]]))[0]))
-                                        temperature = struct.unpack('<h',''.join([chr(b) for b in self.inputBuf[-17:-15]]))[0]
 
-                                        global reset_flag
-                                        global reset_buf
-                                        global init_angles
+                                        print(Xaccel, Yaccel, Zaccel)
+
+                                        # first, ask to leave mattress flat for 5 seconds, press any key when done
+                                        # second, tilt mattress forward 90 degrees for 5 seconds, press key when done
+                                        # third, tilt mattress left/right? 90 degrees for 5 seconds, press key when done
+                                        # then, save calibration params and set calibrating false
+                                        if self.calibrating:
+                                            address = str('{:x}'.format(struct.unpack('<H',''.join([chr(b) for b in self.inputBuf[-15:-13]]))[0]))
+                                            if self.state <= 1: # leave mattress flat
+                                                if self.state == 0:
+                                                    raw_input('Welcome! Press any key to begin the calibration process.')
+                                                    print('Please leave the mattress flat until the first stage is complete.')
+                                                    raw_input('Press any key when ready to begin the first stage.')
+                                                    self.state += 1
+                                                else:
+                                                    self.x_c[address] += Xaccel
+                                                    self.y_c[address] += Yaccel
+                                                    self.z_c[address] += Zaccel
+                                                    self.i_c[address] += 1.0
+                                                
+                                                if all(updated > 1 for updated in self.i_c.values()):
+                                                    self.i_c = dict.fromkeys(self.calibration_check, 0)
+                                                    for addr in self.network.mapping.keys():
+                                                        self.x_c[addr] = self.x_c[addr] / self.i_c[addr]
+                                                        self.y_c[addr] = self.y_c[addr] / self.i_c[addr]
+                                                        self.z_c[addr] = self.z_c[addr] / self.i_c[addr]
+                                                        a_vec = [self.x_c[addr], self.y_c[addr], self.z_c[addr]]
+                                                        self.calib_rotation[addr][:,0] = np.array(a_vec)
+                                                        self.x_c[addr], self.y_c[addr], self.z_c[addr], self.i_c[addr] = 0, 0, 0, 0
+                                                    print('Done with stage 1.')
+                                                    self.state += 1
+                                            elif self.state <= 3: # tilt mattress forward
+                                                if self.state == 2:
+                                                    print('Please tilt the mattress forward 90 degrees, maintaining its position until the second stage is complete.')
+                                                    raw_input('Press any key when ready to begin the second stage.')
+                                                    self.state += 1
+                                                else:
+                                                    self.x_c[address] += Xaccel
+                                                    self.y_c[address] += Yaccel
+                                                    self.z_c[address] += Zaccel
+                                                    self.i_c[address] += 1.0
+                                                    
+                                                if all(updated > 1 for updated in self.i_c.values()):
+                                                    self.i_c = dict.fromkeys(self.i_c, 0)
+                                                    for addr in self.network.mapping.keys():
+                                                        self.x_c[addr] = self.x_c[addr] / self.i_c[addr]
+                                                        self.y_c[addr] = self.y_c[addr] / self.i_c[addr]
+                                                        self.z_c[addr] = self.z_c[addr] / self.i_c[addr]
+                                                        a_vec = [self.x_c[addr], self.y_c[addr], self.z_c[addr]]
+                                                        self.calib_rotation[addr][:,1] = np.array(a_vec)
+                                                        self.x_c[addr], self.y_c[addr], self.z_c[addr], self.i_c[addr] = 0, 0, 0, 0
+                                                    print('Done with stage 2.')
+                                                    self.state += 1
+                                            elif self.state <= 5: # tilt mattress left
+                                                if self.state == 4:
+                                                    print('Please tilt the mattress left 90 degrees, maintaining its position until the second stage is complete.')
+                                                    raw_input('Press any key when ready to begin the final stage of calibration.')
+                                                    self.state += 1
+                                                else:
+                                                    self.x_c[address] += Xaccel
+                                                    self.y_c[address] += Yaccel
+                                                    self.z_c[address] += Zaccel
+                                                    self.i_c[address] += 1.0
+                                                    
+                                                if all(updated > 1 for updated in self.i_c):
+                                                    self.i_c = dict.fromkeys(self.i_c, 0)
+                                                    for addr in self.network.mapping.keys():
+                                                        self.x_c[addr] = self.x_c[addr] / self.i_c[addr]
+                                                        self.y_c[addr] = self.y_c[addr] / self.i_c[addr]
+                                                        self.z_c[addr] = self.z_c[addr] / self.i_c[addr]
+                                                        a_vec = [self.x_c[addr], self.y_c[addr], self.z_c[addr]]
+                                                        self.calib_rotation[addr][:,2] = np.array(a_vec)
+                                                        self.x_c[addr], self.y_c[addr], self.z_c[addr], self.i_c[addr] = 0, 0, 0, 0
+                                                    print('Done with stage 3.')
+                                                    self.state += 1
+                                            else:
+                                                self.calibrating = False
+                                        else:
+                                            formattedAddr = str('{:x}'.format(struct.unpack('<H',''.join([chr(b) for b in self.inputBuf[-15:-13]]))[0]))
+                                            
+                                            vecAccel = np.array([Xaccel, Yaccel, Zaccel])
+                                            Xaccel, Yaccel, Zaccel = np.dot(self.calib_rotation[formattedAddr], vecAccel)
+
+                                            print(Xaccel, Yaccel, Zaccel) # DEBUG
+                                            
+                                            roll, pitch = atan(Yaccel/Zaccel)*180.0/3.14, \
+                                                        atan(-Xaccel/sqrt(Yaccel**2 + Zaccel**2))*180.0/3.14
+                                            temperature = struct.unpack('<h',''.join([chr(b) for b in self.inputBuf[-17:-15]]))[0]
+
+                                            global reset_flag
+                                            global reset_buf
+                                            global init_angles
                                         
-                                        if reset_flag and formattedAddr not in reset_buf:
-                                            init_angles[formattedAddr] = (roll, pitch)
-                                            reset_buf.append(formattedAddr)
-                                            if len(reset_buf) == len(self.network): # have we updated every mimsy
-                                                reset_flag = False
-                                                reset_buf = []
+                                            if reset_flag and formattedAddr not in reset_buf: # start calibrating again?
+                                                init_angles[formattedAddr] = (roll, pitch)
+                                                reset_buf.append(formattedAddr)
+                                                if len(reset_buf) == len(self.network): # have we updated every mimsy
+                                                    reset_flag = False
+                                                    reset_buf = []
 
-                                        data = "Time[s]," + str((asn_initial[0] + asn_initial[1]*65536)*0.01) + \
-                                                ",Xacceleration[gs]," + str(Xaccel) + ",Yacceleration[gs]," + str(Yaccel) + \
-                                                ",Zacceleration[gs]," + str(Zaccel) + ",roll[deg]," + str(roll)  + ",off_r[deg]," + str(init_angles[formattedAddr][0]) + \
-                                                ",pitch[deg]," + str(roll) + ",off_p[deg]," + str(init_angles[formattedAddr])[1] + \
-                                                ",Temperature[C]," + str(temperature) + \
-                                                ",Address," + formattedAddr
+                                            data = "Time[s]," + str((asn_initial[0] + asn_initial[1]*65536)*0.01) + \
+                                                    ",Xacceleration[gs]," + str(Xaccel) + ",Yacceleration[gs]," + str(Yaccel) + \
+                                                    ",Zacceleration[gs]," + str(Zaccel) + ",roll[deg]," + str(roll)  + ",off_r[deg]," + str(init_angles[formattedAddr][0]) + \
+                                                    ",pitch[deg]," + str(roll) + ",off_p[deg]," + str(init_angles[formattedAddr])[1] + \
+                                                    ",Temperature[C]," + str(temperature) + \
+                                                    ",Address," + formattedAddr
 
-                                        if self.last_counter!=None:
-                                            if counter-self.last_counter!=1:
-                                                pass
-                                        if True:
-                                            print data
-                                            print roll, pitch
+                                            if self.last_counter!=None:
+                                                if counter-self.last_counter!=1:
+                                                    pass
+                                            if True:
+                                                print data
+                                                print roll, pitch
 
-                                        self.myfile.write(data + "\n")
-                                        with self.outputBufLock:
-                                            self.outputBuf += [binascii.unhexlify(self.CMD_SEND_DATA)]
-                                        self.network.update(data=(roll-init_angles[formattedAddr][0], pitch-init_angles[formattedAddr][1]), addr=formattedAddr)
+                                            self.myfile.write(data + "\n")
+                                            with self.outputBufLock:
+                                                self.outputBuf += [binascii.unhexlify(self.CMD_SEND_DATA)]
+                                            self.network.update(data=(roll-init_angles[formattedAddr][0], pitch-init_angles[formattedAddr][1]), addr=formattedAddr)
 
 
                         self.lastRxByte = rxByte
@@ -527,10 +632,11 @@ def reset(event):
 if __name__ == "__main__":
     network = Network.initialize()
     init_angles, reset_flag, reset_buf = {}, True, []
+    
     keyboard.hook_key('r', lambda x: reset(x), suppress=False)
-    # proc = os.popen("powershell.exe [System.IO.Ports.SerialPort]::getportnames()").read()
-    # ports = proc.split('\n')
-    if False: # ports[0] == 'COM1':
-        print('DAG root not detected, please check your configuration. Trying again in 7 seconds.')
+    proc = os.popen("powershell.exe [System.IO.Ports.SerialPort]::getportnames()").read()
+    ports = proc.split('\n')
+    if ports[1] == '':
+        print('DAG root not detected, please check your configuration.')
     else:
-        moteProbe('COM3', network)#ports[0], network)
+        moteProbe(ports[1], network)
