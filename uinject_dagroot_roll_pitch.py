@@ -5,16 +5,21 @@ from visual import *
 from math import sqrt, sin, cos, tan, atan, radians, sqrt, pi
 from time import time
 from bidict import bidict
-from collections import deque
 from Tkinter import Tk
 from tkFileDialog import askopenfilename
 
 ''' UTILS '''
 
-init_angles, reset_flag, reset_buf = {}, True, True, []
+init_angles, reset_flag, reset_buf, step = {}, True, [], False
 
 def argmax(iterable, f=lambda x : x):
     return max(enumerate(map(f, iterable)), key=lambda x: x[1])[0]
+
+def areAll(iterable, val=True):
+    for elem in iterable:
+        if elem != val:
+            return False
+    return True
 
 ''' CLASSES '''
 
@@ -383,16 +388,28 @@ class moteProbe(threading.Thread):
 
     def __init__(self,serialport=None, network=None):
 
-        low_pass_buffer = deque(maxlen=5)
-
         # store params
         self.serialport           = serialport
         self.network              = network
         self.calibrating          = True # FIXME: check for preset text file
-        self.calibration_check    = { elem : 0 for elem in network.mapping.keys() }
         self.calib_rotation       = { elem : np.eye(3) for elem in network.mapping.keys() }
 
-        self.x_c, self.y_c, self.z_c, self.i_c = 0, 0, 0, 0
+        self.x_c = { elem : 0 for elem in network.mapping.keys() }
+        self.y_c = { elem : 0 for elem in network.mapping.keys() }
+        self.z_c = { elem : 0 for elem in network.mapping.keys() }
+        self.i_c = { elem : 0 for elem in network.mapping.keys() }
+
+        # TODO: see if hash is present in files with .out type, ask if they want to use a present preset
+        preset = self.checkForPreset()
+        if preset:
+            print("Calibration preset discovered for this setup file.")
+            use = raw_input("Do you want to use the calibration parameters provided by this previous calibration?[y/n] ")
+            if use == 'y':
+                print("Loading calibration preset parameters.")
+                self.calibrating = False
+                self.calib_rotation = dict(preset[()])
+            else:
+                print("Ok, starting calibration.")
 
         self.data                 = []
         self.now                  = datetime.datetime.now()
@@ -487,7 +504,9 @@ class moteProbe(threading.Thread):
                                         Zaccel  = struct.unpack('<h',''.join([chr(b) for b in self.inputBuf[-13:-11]]))[0]
                                         Zaccel = Zaccel / 16000.0
 
-                                        print(Xaccel, Yaccel, Zaccel)
+                                        # print("init: {} {} {}".format(Xaccel, Yaccel, Zaccel))
+
+                                        global step
 
                                         # first, ask to leave mattress flat for 5 seconds, press any key when done
                                         # second, tilt mattress forward 90 degrees for 5 seconds, press key when done
@@ -497,41 +516,41 @@ class moteProbe(threading.Thread):
                                             address = str('{:x}'.format(struct.unpack('<H',''.join([chr(b) for b in self.inputBuf[-15:-13]]))[0]))
                                             if self.state <= 1: # leave mattress flat
                                                 if self.state == 0:
-                                                    raw_input('Welcome! Press any key to begin the calibration process.')
+                                                    step = False
+                                                    print('Welcome to the calibration process.')
                                                     print('Please leave the mattress flat until the first stage is complete.')
-                                                    raw_input('Press any key when ready to begin the first stage.')
-                                                    self.state += 1
-                                                else:
+                                                    print('Press the "s" key when ready to begin the first stage.')
+                                                    self.state = 1
+                                                elif step:
                                                     self.x_c[address] += Xaccel
                                                     self.y_c[address] += Yaccel
                                                     self.z_c[address] += Zaccel
-                                                    self.i_c[address] += 1.0
+                                                    self.i_c[address] += 1
                                                 
-                                                if all(updated > 1 for updated in self.i_c.values()):
-                                                    self.i_c = dict.fromkeys(self.calibration_check, 0)
-                                                    for addr in self.network.mapping.keys():
+                                                if areAll([elem > 6 for elem in self.i_c.values()]):
+                                                    for addr in self.i_c.keys():
                                                         self.x_c[addr] = self.x_c[addr] / self.i_c[addr]
                                                         self.y_c[addr] = self.y_c[addr] / self.i_c[addr]
                                                         self.z_c[addr] = self.z_c[addr] / self.i_c[addr]
                                                         a_vec = [self.x_c[addr], self.y_c[addr], self.z_c[addr]]
-                                                        self.calib_rotation[addr][:,0] = np.array(a_vec)
+                                                        self.calib_rotation[addr][:,2] = np.array(a_vec)
                                                         self.x_c[addr], self.y_c[addr], self.z_c[addr], self.i_c[addr] = 0, 0, 0, 0
                                                     print('Done with stage 1.')
-                                                    self.state += 1
+                                                    self.state = 2
                                             elif self.state <= 3: # tilt mattress forward
                                                 if self.state == 2:
-                                                    print('Please tilt the mattress forward 90 degrees, maintaining its position until the second stage is complete.')
-                                                    raw_input('Press any key when ready to begin the second stage.')
-                                                    self.state += 1
-                                                else:
+                                                    step = False
+                                                    print('Please tilt the mattress forwards 90 degrees, maintaining its position until the second stage is complete.')
+                                                    print('Press the "s" key when ready to begin the second stage.')
+                                                    self.state = 3
+                                                elif step:
                                                     self.x_c[address] += Xaccel
                                                     self.y_c[address] += Yaccel
                                                     self.z_c[address] += Zaccel
-                                                    self.i_c[address] += 1.0
+                                                    self.i_c[address] += 1
                                                     
-                                                if all(updated > 1 for updated in self.i_c.values()):
-                                                    self.i_c = dict.fromkeys(self.i_c, 0)
-                                                    for addr in self.network.mapping.keys():
+                                                if areAll([elem > 6 for elem in self.i_c.values()]):
+                                                    for addr in self.i_c.keys():
                                                         self.x_c[addr] = self.x_c[addr] / self.i_c[addr]
                                                         self.y_c[addr] = self.y_c[addr] / self.i_c[addr]
                                                         self.z_c[addr] = self.z_c[addr] / self.i_c[addr]
@@ -539,29 +558,32 @@ class moteProbe(threading.Thread):
                                                         self.calib_rotation[addr][:,1] = np.array(a_vec)
                                                         self.x_c[addr], self.y_c[addr], self.z_c[addr], self.i_c[addr] = 0, 0, 0, 0
                                                     print('Done with stage 2.')
-                                                    self.state += 1
+                                                    self.state = 4
                                             elif self.state <= 5: # tilt mattress left
                                                 if self.state == 4:
-                                                    print('Please tilt the mattress left 90 degrees, maintaining its position until the second stage is complete.')
-                                                    raw_input('Press any key when ready to begin the final stage of calibration.')
-                                                    self.state += 1
-                                                else:
+                                                    step = False
+                                                    print('Please tilt the mattress right 90 degrees, maintaining its position until the second stage is complete.')
+                                                    print('Press the "s" when ready to begin the final stage of calibration.')
+                                                    self.state = 5
+                                                elif step:
                                                     self.x_c[address] += Xaccel
                                                     self.y_c[address] += Yaccel
                                                     self.z_c[address] += Zaccel
-                                                    self.i_c[address] += 1.0
+                                                    self.i_c[address] += 1
                                                     
-                                                if all(updated > 1 for updated in self.i_c):
-                                                    self.i_c = dict.fromkeys(self.i_c, 0)
-                                                    for addr in self.network.mapping.keys():
+                                                if areAll([elem > 6 for elem in self.i_c.values()]):
+                                                    for addr in self.i_c.keys():
                                                         self.x_c[addr] = self.x_c[addr] / self.i_c[addr]
                                                         self.y_c[addr] = self.y_c[addr] / self.i_c[addr]
                                                         self.z_c[addr] = self.z_c[addr] / self.i_c[addr]
                                                         a_vec = [self.x_c[addr], self.y_c[addr], self.z_c[addr]]
-                                                        self.calib_rotation[addr][:,2] = np.array(a_vec)
+                                                        self.calib_rotation[addr][:,0] = np.array(a_vec)
                                                         self.x_c[addr], self.y_c[addr], self.z_c[addr], self.i_c[addr] = 0, 0, 0, 0
                                                     print('Done with stage 3.')
-                                                    self.state += 1
+                                                    self.state = 6
+                                                    self.calibrating = False
+
+                                                    self.saveRotation()
                                             else:
                                                 self.calibrating = False
                                         else:
@@ -570,7 +592,7 @@ class moteProbe(threading.Thread):
                                             vecAccel = np.array([Xaccel, Yaccel, Zaccel])
                                             Xaccel, Yaccel, Zaccel = np.dot(self.calib_rotation[formattedAddr], vecAccel)
 
-                                            print(Xaccel, Yaccel, Zaccel) # DEBUG
+                                            # print("rotated: {} {} {}".format(Xaccel, Yaccel, Zaccel)) # DEBUG
                                             
                                             roll, pitch = atan(Yaccel/Zaccel)*180.0/3.14, \
                                                         atan(-Xaccel/sqrt(Yaccel**2 + Zaccel**2))*180.0/3.14
@@ -597,7 +619,7 @@ class moteProbe(threading.Thread):
                                             if self.last_counter!=None:
                                                 if counter-self.last_counter!=1:
                                                     pass
-                                            if True:
+                                            if False:
                                                 print data
                                                 print roll, pitch
 
@@ -617,6 +639,32 @@ class moteProbe(threading.Thread):
     def close(self):
         self.goOn = False
 
+    def saveRotation(self):
+        '''
+        Write mimsy list hash mapping to rotation matrix to file.
+        '''
+        mimsys = self.network.mapping.keys()
+        dim = (self.network.w, self.network.h)
+        rotation = self.calib_rotation
+        
+        h = hash(tuple([dim[0], dim[1]] + mimsys))
+        np.save('{}.npy'.format(h), rotation)
+
+    def checkForPreset(self):
+        '''
+        Check if current mimsy organization has been previously calibrated.
+        '''
+        mimsys = self.network.mapping.keys()
+        dim = (self.network.w, self.network.h)
+        
+        # list of files of .out type
+        h = hash(tuple([dim[0], dim[1]] + mimsys))
+        for filename in os.listdir("."):
+            print(filename)
+            if filename.endswith(".npy"):
+                if os.path.splitext(filename)[0] == str(h):
+                    return np.load("{}.npy".format(os.path.splitext(filename)[0]))
+
     #======================== private =========================================
 
 def main():
@@ -629,11 +677,17 @@ def reset(event):
         reset_flag = True
         reset_buf = []
 
+def calibrationStep(event):
+    global step
+    if event.event_type == 'down':
+        step = True
+
 if __name__ == "__main__":
     network = Network.initialize()
     init_angles, reset_flag, reset_buf = {}, True, []
     
     keyboard.hook_key('r', lambda x: reset(x), suppress=False)
+    keyboard.hook_key('s', lambda x: calibrationStep(x), suppress=False)
     proc = os.popen("powershell.exe [System.IO.Ports.SerialPort]::getportnames()").read()
     ports = proc.split('\n')
     if ports[1] == '':
