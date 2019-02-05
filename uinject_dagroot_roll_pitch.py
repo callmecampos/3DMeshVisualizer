@@ -91,34 +91,42 @@ class Network:
         if testing:
             Euler.SCALE = 0.5
 
+        self.gui = False
+
+    def __len__(self):
+        return self.w * self.h
+
+    def setupGUI(self):
+        '''
+        Visual Python GUI setup.
+        '''
+        self.gui = True
+        
         self.scene = display(title='Network' + str(Network._id) + 'Visualization', x=0, y=0)
         self.scene.background = (0.5,0.5,0.5)
 
-        cx, cy = float(w) / 2 - .5, float(h) / 2 - .5
+        cx, cy = float(self.w) / 2 - .5, float(self.h) / 2 - .5
         cz = self.scene.center.z
         self.center = (cx, cy, cz)
         self.scene.center = (cx,cy,cz)
         self.scene.forward = (0,0,-1)
-        self.scene.range = max(w, h)
+        self.scene.range = max(self.w, self.h)
 
         self.scene.lights = [vector(1,0,0), vector(0, 1, 0), vector(0, 0, 1), \
             vector(-1,0,0), vector(0, -1, 0), vector(0, 0, -1)]
         self.scene.ambient = 0
 
         self.mimsies = []
-        for i in range(w*h):
+        for i in range(self.w*self.h):
             x0, y0 = self.quadrant_coors(i)
             b = box(pos=(x0,y0,0), length=1, height=1, width=0.2, color=(1,0,0))
             self.mimsies.append(b)
-            print("We did it {}".format(w*h))
+            # print("We did it {}".format(w*h))
 
-        self.inputs = np.array([(0, 0) for k in range(w*h)])
+        self.inputs = np.array([(0, 0) for k in range(self.w*self.h)])
         self.initGUI()
 
         Network._id += 1
-
-    def __len__(self):
-        return self.w * self.h
 
     def update(self, data, addr):
         '''
@@ -133,6 +141,7 @@ class Network:
             proj, norm = Euler.fromAngles(data).rotate()
             self.get_vec(index).axis = proj
             self.setMimsyColor(index, b=0.5 + 0.5*norm)
+            # print('set color.')
 
     def initGUI(self):
         '''
@@ -243,7 +252,7 @@ class Network:
         set = False
 
         mapping = bidict({})
-        print(list(reversed(content)))
+        # print(list(reversed(content)))
         for i, line in enumerate(list(reversed(content))):
             addrs = line.replace(" ", "").replace("\n", "").split(',')
             if not set:
@@ -410,6 +419,8 @@ class moteProbe(threading.Thread):
                 self.calib_rotation = dict(preset[()])
             else:
                 print("Ok, starting calibration.")
+
+        self.network.setupGUI()
 
         self.data                 = []
         self.now                  = datetime.datetime.now()
@@ -587,6 +598,9 @@ class moteProbe(threading.Thread):
                                             else:
                                                 self.calibrating = False
                                         else:
+                                            if not self.network.gui:
+                                                self.network.setupGUI()
+                                            
                                             formattedAddr = str('{:x}'.format(struct.unpack('<H',''.join([chr(b) for b in self.inputBuf[-15:-13]]))[0]))
                                             
                                             vecAccel = np.array([Xaccel, Yaccel, Zaccel])
@@ -598,21 +612,21 @@ class moteProbe(threading.Thread):
                                                         atan(-Xaccel/sqrt(Yaccel**2 + Zaccel**2))*180.0/3.14
                                             temperature = struct.unpack('<h',''.join([chr(b) for b in self.inputBuf[-17:-15]]))[0]
 
-                                            global reset_flag
-                                            global reset_buf
-                                            global init_angles
+                                            # global reset_flag
+                                            # global reset_buf
+                                            # global init_angles
                                         
-                                            if reset_flag and formattedAddr not in reset_buf: # start calibrating again?
+                                            '''if reset_flag and formattedAddr not in reset_buf: # start calibrating again?
                                                 init_angles[formattedAddr] = (roll, pitch)
                                                 reset_buf.append(formattedAddr)
                                                 if len(reset_buf) == len(self.network): # have we updated every mimsy
                                                     reset_flag = False
-                                                    reset_buf = []
+                                                    reset_buf = []'''
 
                                             data = "Time[s]," + str((asn_initial[0] + asn_initial[1]*65536)*0.01) + \
                                                     ",Xacceleration[gs]," + str(Xaccel) + ",Yacceleration[gs]," + str(Yaccel) + \
-                                                    ",Zacceleration[gs]," + str(Zaccel) + ",roll[deg]," + str(roll)  + ",off_r[deg]," + str(init_angles[formattedAddr][0]) + \
-                                                    ",pitch[deg]," + str(roll) + ",off_p[deg]," + str(init_angles[formattedAddr])[1] + \
+                                                    ",Zacceleration[gs]," + str(Zaccel) + ",roll[deg]," + str(roll) + \
+                                                    ",pitch[deg]," + str(roll) + \
                                                     ",Temperature[C]," + str(temperature) + \
                                                     ",Address," + formattedAddr
 
@@ -626,7 +640,7 @@ class moteProbe(threading.Thread):
                                             self.myfile.write(data + "\n")
                                             with self.outputBufLock:
                                                 self.outputBuf += [binascii.unhexlify(self.CMD_SEND_DATA)]
-                                            self.network.update(data=(roll-init_angles[formattedAddr][0], pitch-init_angles[formattedAddr][1]), addr=formattedAddr)
+                                            self.network.update(data=(roll, pitch), addr=formattedAddr)
 
 
                         self.lastRxByte = rxByte
@@ -660,7 +674,6 @@ class moteProbe(threading.Thread):
         # list of files of .out type
         h = hash(tuple([dim[0], dim[1]] + mimsys))
         for filename in os.listdir("."):
-            print(filename)
             if filename.endswith(".npy"):
                 if os.path.splitext(filename)[0] == str(h):
                     return np.load("{}.npy".format(os.path.splitext(filename)[0]))
