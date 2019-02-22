@@ -3,7 +3,7 @@ import datetime, binascii, random, re, keyboard
 import numpy as np
 from visual import *
 from math import sqrt, sin, cos, tan, atan, radians, sqrt, pi
-from time import time
+from time import time, sleep
 from bidict import bidict
 from Tkinter import Tk
 from tkFileDialog import askopenfilename
@@ -420,6 +420,8 @@ class moteProbe(threading.Thread):
             else:
                 print("Ok, starting calibration.")
 
+        print(self.calib_rotation)
+
         self.network.setupGUI()
 
         self.data                 = []
@@ -466,7 +468,7 @@ class moteProbe(threading.Thread):
                         rxByte = self.serial.read(1)
                     except Exception as err:
                         print err
-                        time.sleep(1)
+                        sleep(1)
                         break
                     else:
                         if      (
@@ -497,7 +499,8 @@ class moteProbe(threading.Thread):
                                 tempBuf              = self.inputBuf
                                 self.inputBuf        = self.hdlc.dehdlcify(self.inputBuf)
                             except Exception as err:
-                                print '{0}: invalid serial frame: {2} {1}'.format(self.name, err, tempBuf)
+                                pass
+                                # print '{0}: invalid serial frame: {2} {1}'.format(self.name, err, tempBuf)
                             else:
                                 if   self.inputBuf==[ord('R')]:
                                     with self.outputBufLock:
@@ -514,8 +517,6 @@ class moteProbe(threading.Thread):
                                         Yaccel = Yaccel / 16000.0
                                         Zaccel  = struct.unpack('<h',''.join([chr(b) for b in self.inputBuf[-13:-11]]))[0]
                                         Zaccel = Zaccel / 16000.0
-
-                                        # print("init: {} {} {}".format(Xaccel, Yaccel, Zaccel))
 
                                         global step
 
@@ -602,26 +603,22 @@ class moteProbe(threading.Thread):
                                                 self.network.setupGUI()
                                             
                                             formattedAddr = str('{:x}'.format(struct.unpack('<H',''.join([chr(b) for b in self.inputBuf[-15:-13]]))[0]))
+
+                                            print("init: {} {} {}".format(Xaccel, Yaccel, Zaccel))
                                             
                                             vecAccel = np.array([Xaccel, Yaccel, Zaccel])
-                                            Xaccel, Yaccel, Zaccel = np.dot(self.calib_rotation[formattedAddr], vecAccel)
+                                            Xaccel, Yaccel, Zaccel = np.dot(np.linalg.pinv(self.calib_rotation[formattedAddr]), vecAccel)
 
-                                            # print("rotated: {} {} {}".format(Xaccel, Yaccel, Zaccel)) # DEBUG
+                                            print("rotated: {} {} {}".format(Xaccel, Yaccel, Zaccel)) # DEBUG
                                             
                                             roll, pitch = atan(Yaccel/Zaccel)*180.0/3.14, \
                                                         atan(-Xaccel/sqrt(Yaccel**2 + Zaccel**2))*180.0/3.14
                                             temperature = struct.unpack('<h',''.join([chr(b) for b in self.inputBuf[-17:-15]]))[0]
 
-                                            # global reset_flag
-                                            # global reset_buf
-                                            # global init_angles
-                                        
-                                            '''if reset_flag and formattedAddr not in reset_buf: # start calibrating again?
-                                                init_angles[formattedAddr] = (roll, pitch)
-                                                reset_buf.append(formattedAddr)
-                                                if len(reset_buf) == len(self.network): # have we updated every mimsy
-                                                    reset_flag = False
-                                                    reset_buf = []'''
+                                            global reset_flag
+                                            
+                                            if reset_flag: # start calibrating again
+                                                self.calibrating = True
 
                                             data = "Time[s]," + str((asn_initial[0] + asn_initial[1]*65536)*0.01) + \
                                                     ",Xacceleration[gs]," + str(Xaccel) + ",Yacceleration[gs]," + str(Yaccel) + \
@@ -694,6 +691,7 @@ def calibrationStep(event):
     global step
     if event.event_type == 'down':
         step = True
+        print('S pressed, recording orientation data.')
 
 if __name__ == "__main__":
     network = Network.initialize()
