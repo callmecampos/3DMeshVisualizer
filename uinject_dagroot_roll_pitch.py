@@ -604,12 +604,12 @@ class moteProbe(threading.Thread):
                                             
                                             formattedAddr = str('{:x}'.format(struct.unpack('<H',''.join([chr(b) for b in self.inputBuf[-15:-13]]))[0]))
 
-                                            print("init: {} {} {}".format(Xaccel, Yaccel, Zaccel))
+                                            # print("init: {} {} {}".format(Xaccel, Yaccel, Zaccel))
                                             
                                             vecAccel = np.array([Xaccel, Yaccel, Zaccel])
                                             Xaccel, Yaccel, Zaccel = np.dot(np.linalg.pinv(self.calib_rotation[formattedAddr]), vecAccel)
 
-                                            print("rotated: {} {} {}".format(Xaccel, Yaccel, Zaccel)) # DEBUG
+                                            # print("rotated: {} {} {}".format(Xaccel, Yaccel, Zaccel)) # DEBUG
                                             
                                             roll, pitch = atan(Yaccel/Zaccel)*180.0/3.14, \
                                                         atan(-Xaccel/sqrt(Yaccel**2 + Zaccel**2))*180.0/3.14
@@ -618,7 +618,18 @@ class moteProbe(threading.Thread):
                                             global reset_flag
                                             
                                             if reset_flag: # start calibrating again
-                                                self.calibrating = True
+                                                reset_flag = False
+                                                if raw_input("Are you sure you want to recalibrate? [y/n]") == "y":
+                                                    self.state = 0
+                                                    self.calibrating = True
+                                                    step = False
+
+                                                    self.x_c = { elem : 0 for elem in network.mapping.keys() }
+                                                    self.y_c = { elem : 0 for elem in network.mapping.keys() }
+                                                    self.z_c = { elem : 0 for elem in network.mapping.keys() }
+                                                    self.i_c = { elem : 0 for elem in network.mapping.keys() }
+                                                else:
+                                                    print("Ok, not calibrating.")
 
                                             data = "Time[s]," + str((asn_initial[0] + asn_initial[1]*65536)*0.01) + \
                                                     ",Xacceleration[gs]," + str(Xaccel) + ",Yacceleration[gs]," + str(Yaccel) + \
@@ -630,9 +641,9 @@ class moteProbe(threading.Thread):
                                             if self.last_counter!=None:
                                                 if counter-self.last_counter!=1:
                                                     pass
-                                            if False:
+                                            if True:
                                                 print data
-                                                print roll, pitch
+                                                print formattedAddr, roll, pitch
 
                                             self.myfile.write(data + "\n")
                                             with self.outputBufLock:
@@ -695,13 +706,11 @@ def calibrationStep(event):
 
 if __name__ == "__main__":
     network = Network.initialize()
-    init_angles, reset_flag, reset_buf = {}, True, []
+    init_angles, reset_flag, reset_buf = {}, False, []
     
     keyboard.hook_key('r', lambda x: reset(x), suppress=False)
     keyboard.hook_key('s', lambda x: calibrationStep(x), suppress=False)
-    proc = os.popen("powershell.exe [System.IO.Ports.SerialPort]::getportnames()").read()
-    ports = proc.split('\n')
-    if ports[1] == '':
+    if False:
         print('DAG root not detected, please check your configuration.')
     else:
-        moteProbe(ports[1], network)
+        moteProbe("COM4", network)
